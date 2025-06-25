@@ -29,16 +29,39 @@
    - Simplified onboarding and reproducible setup for new contributors or
      analysis environments.
 
+* Prerequisites
+
+  Working with this repository assumes prior experience with:
+
+  - **Git, Bash, and standard Unix command-line tools**. These are used
+    throughout and are required for setup and day-to-day tasks.
+    Tools such as [[https://man.archlinux.org/man/rg.1][ripgrep]], [[https://www.gnu.org/software/bash/][GNU Bash]], and [[https://en.wikipedia.org/wiki/Grep][grep/regex workflows]] are assumed.
+
+  - **At least one supported programming language**, such as C, C++, Java,
+    Python, Go, or Ruby. A solid understanding of the target language is
+    necessary to interpret analysis results and write effective queries.
+    See general background on [[https://en.wikipedia.org/wiki/Programming_language][programming languages]] if needed.
+
+  - **Basic familiarity with program structure concepts**, including
+    [[https://en.wikipedia.org/wiki/Abstract_syntax_tree][abstract syntax trees (ASTs)]], [[https://en.wikipedia.org/wiki/Control-flow_graph][control-flow graphs (CFGs)]], and
+    [[https://en.wikipedia.org/wiki/Data-flow_analysis][data-flow graphs (DFGs)]]. These are core to how CodeQL models code behavior.
+
+  - **Optional but helpful**: familiarity with structural or functional
+    programming languages (e.g. [[https://en.wikipedia.org/wiki/Lisp_(programming_language)][Lisp]] or [[https://en.wikipedia.org/wiki/OCaml][OCaml]]) can make working with
+    CodeQL’s query language and type system more intuitive.
+    See overview of [[https://en.wikipedia.org/wiki/Functional_programming][functional programming]] for related context.
+
+
 * Repository Layout
 ** Core Structure
    - Repository is based on: https://github.com/github/vscode-codeql-starter.git
    - All development work is done on the branch: qllab
-   - CodeQL version is pinned via the `ql/` submodule:
+   - CodeQL version is pinned via the =ql/= submodule:
      : commit 4d681f05bd671f8b5e31624f16a2b4d75e61c071 (tag: codeql-cli/v2.22.0)
    - A prebuilt CodeQL CLI binary is included:
      : 1104625939  assets/codeql-osx64.zip
    - Project-specific repositories can be added directly under the root.
-     Example: the C dataflow workshop in `./codeql-dataflow-sql-injection`
+     Example: the C dataflow workshop in =./codeql-dataflow-sql-injection=
 
 ** Additional Structure Notes
    - The original upstream README.md is preserved at [[./README-vscode-codeql-starter.md]]
