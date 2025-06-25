@@ -33,20 +33,20 @@
 
   Working with this repository assumes prior experience with:
 
-  - **Git, Bash, and standard Unix command-line tools**. These are used
+  - *Git, Bash, and standard Unix command-line tools*. These are used
     throughout and are required for setup and day-to-day tasks.
     Tools such as [[https://man.archlinux.org/man/rg.1][ripgrep]], [[https://www.gnu.org/software/bash/][GNU Bash]], and [[https://en.wikipedia.org/wiki/Grep][grep/regex workflows]] are assumed.
 
-  - **At least one supported programming language**, such as C, C++, Java,
+  - *At least one supported programming language*, such as C, C++, Java,
     Python, Go, or Ruby. A solid understanding of the target language is
     necessary to interpret analysis results and write effective queries.
     See general background on [[https://en.wikipedia.org/wiki/Programming_language][programming languages]] if needed.
 
-  - **Basic familiarity with program structure concepts**, including
+  - *Basic familiarity with program structure concepts*, including
     [[https://en.wikipedia.org/wiki/Abstract_syntax_tree][abstract syntax trees (ASTs)]], [[https://en.wikipedia.org/wiki/Control-flow_graph][control-flow graphs (CFGs)]], and
     [[https://en.wikipedia.org/wiki/Data-flow_analysis][data-flow graphs (DFGs)]]. These are core to how CodeQL models code behavior.
 
-  - **Optional but helpful**: familiarity with structural or functional
+  - *Optional but helpful*: familiarity with structural or functional
     programming languages (e.g. [[https://en.wikipedia.org/wiki/Lisp_(programming_language)][Lisp]] or [[https://en.wikipedia.org/wiki/OCaml][OCaml]]) can make working with
     CodeQL’s query language and type system more intuitive.
     See overview of [[https://en.wikipedia.org/wiki/Functional_programming][functional programming]] for related context.
