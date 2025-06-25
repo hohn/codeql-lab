@@ -1,0 +1,12 @@
+name: Untrusted workflow
+
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Untrusted step
+        uses: dodgycorp/bad-action@latest  # This should trigger the query
