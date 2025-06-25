@@ -1,0 +1,45 @@
+* codeql-lab: Centralized Git Repository for CodeQL Development
+
+** Overview
+   codeql-lab is a consolidated Git repository that collects all relevant
+   CodeQL components, resources, and tooling into a single
+   version-controlled location.
+
+** Purpose
+   The goal of this repository is to provide an integrated development
+   environment (“lab”) for CodeQL research, experimentation, and custom
+   query development. It simplifies setup by maintaining all required
+   submodules, configuration files, and datasets in one place.
+
+** Repository Location
+   The primary repository is hosted at:
+   https://github.com/hohn/codeql-lab
+
+** Intended Use Cases
+   - Local experimentation with CodeQL queries and libraries.
+   - End-to-end testing of custom model data and query logic.
+     This includes writing and validating custom data flow models,
+     adjusting model coverage, and confirming that query results behave
+     as expected across controlled datasets. The lab setup supports rapid
+     iteration on QL logic, helping detect unintended changes and enabling
+     reproducible evaluations of taint tracking, control flow, or API usage
+     patterns.
+   - Structured collaboration and controlled updates across all
+     CodeQL-related artifacts.
+   - Simplified onboarding and reproducible setup for new contributors or
+     analysis environments.
+
+* Repository Layout
+** Core Structure
+   - Repository is based on: https://github.com/github/vscode-codeql-starter.git
+   - All development work is done on the branch: qllab
+   - CodeQL version is pinned via the `ql/` submodule:
+     : commit 4d681f05bd671f8b5e31624f16a2b4d75e61c071 (tag: codeql-cli/v2.22.0)
+   - A prebuilt CodeQL CLI binary is included:
+     : 1104625939  assets/codeql-osx64.zip
+   - Project-specific repositories can be added directly under the root.
+     Example: the C dataflow workshop in `./codeql-dataflow-sql-injection`
+
+** Additional Structure Notes
+   - The original upstream README.md is preserved at [[./README-vscode-codeql-starter.md]]
+
