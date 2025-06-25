@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+        "codeQL.runningQueries.autoSave": true,
+		"makefile.configureOnOpen": false,
+		"codeQL.githubDatabase.download": "never"
+	}
+}

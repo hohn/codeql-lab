@@ -1,0 +1,2 @@
+curl -L -O https://github.com/github/codeql-cli-binaries/releases/download/v2.22.0/codeql-osx64.zip
+unzip -q assets/codeql-osx64.zip
