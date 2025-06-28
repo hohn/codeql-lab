@@ -2,3 +2,6 @@
 	path = ql
 	url = https://github.com/github/codeql.git
 	branch = lgtm.com
+[submodule "extern/duckdb"]
+	path = extern/duckdb
+	url = https://github.com/hohn/duckdb
