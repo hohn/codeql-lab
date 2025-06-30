@@ -1,0 +1,51 @@
+* Jedis Codeql Setup
+  - fork at https://github.com/hohn/jedis
+  - github db build: enable code scanning, advanced config
+    - only java-kotlin, build-mode: none.
+    - creates https://github.com/hohn/jedis/blob/master/.github/workflows/codeql.yml
+    - action run at https://github.com/hohn/jedis/actions/workflows/codeql.yml
+    - db download
+      #+BEGIN_SRC sh
+        # list dbs
+        curl -H "Authorization: token $GITHUB_TOKEN" \
+             https://api.github.com/repos/hohn/jedis/code-scanning/analyses
+
+
+        # Get DB via curl
+        cd ~/work-gh/codeql-lab/assets
+        curl -H "Authorization: token $GITHUB_TOKEN" \
+             -H "Accept: application/zip" \
+             -L \
+             https://api.github.com/repos/hohn/jedis/code-scanning/codeql/databases/java \
+             -o jedis-database-gh.zip
+      #+END_SRC
+    - db at ~/work-gh/codeql-lab/assets/jedis-database-gh.zip
+  - local db build:
+    #+BEGIN_SRC sh 
+      cd ~/work-gh/codeql-lab/
+
+      # Add the submodule
+      git submodule add https://github.com/hohn/jedis extern/jedis
+
+      # Initialize and clone the submodule
+      git submodule update --init --recursive
+
+
+      # Build directly once to resolve any errors
+      cd ~/work-gh/codeql-lab/extern/jedis
+      mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+
+      # Build under codeql
+      # Step 1: Clean any prior Maven builds
+      cd ~/work-gh/codeql-lab/extern/jedis
+      mvn clean
+
+      # Step 2: Run CodeQL DB creation with mvn install
+      cd ~/work-gh/codeql-lab
+      codeql database create assets/jedis-db-local \
+             --overwrite \
+             --language=java \
+             --command="mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V" \
+             --source-root=extern/jedis
+    #+END_SRC
+    
