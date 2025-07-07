@@ -50,7 +50,7 @@
     #+END_SRC
     
 * Jedis Codeql Modeling
-** setup and start
+** Setup and Start
   #+BEGIN_SRC sh 
     # Step 1: Go to your CodeQL lab directory
     cd ~/work-gh/codeql-lab
@@ -80,4 +80,98 @@
     #   'CodeQL: Method modeling' to begin a guided modeling tutorial
 
   #+END_SRC
-  
+** Using the Editor
+   Note that just by starting =CodeQL: Method modeling=, the new file
+   : .github/codeql/extensions/jedis-db-local-java/codeql-pack.yml
+   is created.
+
+** Relevant Queries
+   A quick =grep= shows
+   #+BEGIN_SRC text
+     grep 'java.*modelgen' files  |grep -v test/
+
+     ql/java/ql/src/utils/modelgenerator
+     ql/java/ql/src/utils/modelgenerator/CaptureNeutralModels.ql
+     ql/java/ql/src/utils/modelgenerator/CaptureTypeBasedSummaryModels.ql
+     ql/java/ql/src/utils/modelgenerator/CaptureSinkModels.ql
+     ql/java/ql/src/utils/modelgenerator/CaptureContentSummaryModels.ql
+     ql/java/ql/src/utils/modelgenerator/internal
+     ql/java/ql/src/utils/modelgenerator/internal/CaptureModels.qll
+     ql/java/ql/src/utils/modelgenerator/internal/CaptureTypeBasedSummaryModels.qll
+     ql/java/ql/src/utils/modelgenerator/internal/CaptureModelsPrinting.qll
+     ql/java/ql/src/utils/modelgenerator/CaptureSummaryModels.ql
+     ql/java/ql/src/utils/modelgenerator/RegenerateModels.py
+     ql/java/ql/src/utils/modelgenerator/CaptureSourceModels.ql
+     ql/java/ql/src/utils/modelgenerator/debug
+     ql/java/ql/src/utils/modelgenerator/debug/CaptureSummaryModelsPartialPath.ql
+     ql/java/ql/src/utils/modelgenerator/debug/CaptureSummaryModelsPath.ql
+     ql/java/ql/src/utils/modelgenerator/debug/README.md
+   #+END_SRC
+
+** Primary Query File
+   The primary query file is 
+   : ../ql/java/ql/src/utils/modelgenerator/internal/CaptureModels.qll
+   This acts as the backbone, exposing traits like:
+
+   - SummaryModelGeneratorInput
+   - ModelGeneratorCommonInput
+   - isPrimitiveTypeUsedForBulkData(...)
+   - Likely common predicates such as:
+     + hasNoSideEffects(...)
+     + isNeutralReturn(...)
+     + isBulkGetterLike(...)
+
+     These are imported by:
+     - CaptureSinkModels.ql
+     - CaptureSummaryModels.ql
+     - CaptureContentSummaryModels.ql
+     - CaptureHeuristicSummaryModels.ql
+
+   - Design: Three Modeling Targets
+     | Module                       | Implements                      | Purpose                                          |
+     | ---------------------------- | ------------------------------- | ------------------------------------------------ |
+     | `SummaryModelGeneratorInput` | `SummaryModelGeneratorInputSig` | Models pass-through or computed summaries        |
+     | `SourceModelGeneratorInput`  | `SourceModelGeneratorInputSig`  | Models user-controlled or origin taint sources   |
+     | `SinkModelGeneratorInput`    | `SinkModelGeneratorInputSig`    | Models taint sinks (e.g., logging, SQL, network) |
+     
+   - Shared Input System
+     ModelGeneratorCommonInput provides:
+     - Name formatting
+     - Type filtering (isRelevantType)
+     - Signature stringification
+     - “Approximate output” helpers like Argument[pos].Element
+
+     This gives a stable data interface to the rest of the system.
+
+   - Filtering logic
+     #+BEGIN_SRC java
+       private predicate relevant(Callable api) {
+         api.isPublic() and
+         api.getDeclaringType().isPublic() and
+         api.fromSource() and
+         not isUninterestingForModels(api) and
+         not isInfrequentlyUsed(api.getCompilationUnit())
+       }
+     #+END_SRC
+
+** Experiment with test clone
+   The needed imports are private, so clone
+   : ql/java/ql/test/utils/modelgenerator/dataflow/CaptureSourceModels.ql
+   and experiment there.
+
+   #+BEGIN_SRC java
+     import java
+     import utils.modelgenerator.internal.CaptureModels
+     import SourceModels
+     import utils.test.InlineMadTest
+
+     module InlineMadTestConfig implements InlineMadTestConfigSig {
+       string getCapturedModel(Callable c) { result = Heuristic::captureSource(c) }
+
+       string getKind() { result = "source" }
+     }
+
+     import InlineMadTest<InlineMadTestConfig>
+
+
+   #+END_SRC
