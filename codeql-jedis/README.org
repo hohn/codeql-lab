@@ -49,3 +49,35 @@
              --source-root=extern/jedis
     #+END_SRC
     
+* Jedis Codeql Modeling
+** setup and start
+  #+BEGIN_SRC sh 
+    # Step 1: Go to your CodeQL lab directory
+    cd ~/work-gh/codeql-lab
+
+    # Step 2: Extract the prebuilt CodeQL database for the Jedis project
+    unzip -q assets/jedis-db-local.zip
+
+    # Step 3: Extract the CodeQL command-line tools (platform-specific)
+    unzip -q assets/codeql-osx64.zip
+
+    # Step 4: Change directory to the unpacked CodeQL CLI tools
+    cd ~/work-gh/codeql-lab/codeql
+
+    # Step 5: Add the CodeQL CLI directory to your shell's PATH
+    # This allows you to run `codeql` from any location
+    export PATH="$(pwd):$PATH"
+
+    # Step 6: Launch Visual Studio Code with the lab workspace
+    code qllab.code-workspace
+
+    # In VS Code, perform the following setup manually:
+    # - Set the current database to: jedis-db-local
+    #   (Usually from the CodeQL extension pane – this connects the UI to your analysis DB)
+    # - Set the CodeQL CLI executable to: ~/work-gh/codeql-lab/codeql/codeql
+    #   (Tell the extension where to find the CLI you just extracted)
+    # - In the CodeQL extension tab, scroll to the bottom and select:
+    #   'CodeQL: Method modeling' to begin a guided modeling tutorial
+
+  #+END_SRC
+  
