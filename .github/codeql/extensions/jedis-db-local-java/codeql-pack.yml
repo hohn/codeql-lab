@@ -1,0 +1,7 @@
+name: pack/jedis-db-local-java
+version: 0.0.0
+library: true
+extensionTargets:
+  codeql/java-all: '*'
+dataExtensions:
+  - models/**/*.yml
