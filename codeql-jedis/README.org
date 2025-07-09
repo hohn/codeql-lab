@@ -183,85 +183,89 @@
   =sqlite-jdbc-3.36.0.1.jar=, so we can use it to illustrate modeling on a smaller
   example.
   
-* TODO Modeling jedis as dependency
-  Using the
-  - model as depedency option
-  the query run by model editor is
-  : /Users/hohn/work-gh/codeql-lab/ql/java/ql/src/utils/modeleditor/FrameworkModeEndpoints.ql
+* Modeling Jedis as a Dependency in Model Editor
+** Set up and run Editor
+   To model =jedis= for taint analysis using the /model editor/, select the /"model
+   as dependency"/ option.
 
-  The columns of the query
-  #+BEGIN_SRC java
-    from PublicEndpointFromSource endpoint, boolean supported, string type
-    where
-      supported = isSupported(endpoint) and
-      type = supportedType(endpoint)
-    select endpoint, endpoint.getPackageName(), endpoint.getTypeName(), endpoint.getName(),
-      endpoint.getParameterTypes(), supported,
-      endpoint.getCompilationUnit().getParentContainer().getBaseName(), type
-  #+END_SRC
-  indicate the modeling state:
-  - supported == true :: shows as 'Method already modeled' in the editor
-  - supported == false :: shows as 'Unmodeled' in the editor
+   When this mode is active, the following CodeQL query is used:
+   : /Users/hohn/work-gh/codeql-lab/ql/java/ql/src/utils/modeleditor/FrameworkModeEndpoints.ql
 
-  Files involved:
-  - Note that just by starting =CodeQL: Method modeling=, the new file
-    : .github/codeql/extensions/jedis-db-local-java/codeql-pack.yml
-    is created.
+   This query defines:
+   #+BEGIN_SRC java
+     from PublicEndpointFromSource endpoint, boolean supported, string type
+         where
+         supported = isSupported(endpoint) and
+         type = supportedType(endpoint)
+         select endpoint, endpoint.getPackageName(), endpoint.getTypeName(), endpoint.getName(),
+         endpoint.getParameterTypes(), supported,
+         endpoint.getCompilationUnit().getParentContainer().getBaseName(), type
+   #+END_SRC
 
-  - After selection and saving, results are in
-    : ~/work-gh/codeql-lab/.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml
-    The sink added:
-    #+BEGIN_SRC yaml
-      extensions:
-        ...
-        - addsTo:
-            pack: codeql/java-all
-            extensible: sinkModel
-          data:
-            - ["redis.clients.jedis","Jedis",true,"eval","(String)","","Argument[0]","code-injection","manual"]
-        ...
-    #+END_SRC
+   There is a direct connection between output columns in the model editor:
+   - =supported = true= → shows in the UI as /"Method already modeled"/
+   - =supported = false= → shown as /"Unmodeled"/
 
-  For the files to be picked up requires the entry
-  : "codeQL.runningQueries.useExtensionPacks": "all"
-  in 
-  : /Users/hohn/work-gh/codeql-lab/qllab.code-workspace
-  #+begin_src javascript
-    {
-        "folders": [
-            {
-                "path": "."
-            }
-        ],
-        "settings": {
-            "omnisharp.autoStart": false,
-            "codeQL.githubDatabase.download": "never",
-            "sarif-viewer.connectToGithubCodeScanning": "off",
-            "codeQL.cli.executablePath": "/Users/hohn/work-gh/codeql-lab/codeql/codeql",
-            "codeQL.runningQueries.useExtensionPacks": "all"
-        }
-    }
+**  Files Created or Modified by the Modeling Workflow
+   - Upon launching ==CodeQL: Method modeling==, a new pack manifest is created:
+     : .github/codeql/extensions/jedis-db-local-java/codeql-pack.yml
+   - After selecting methods and saving, modeling results are written to:
+     : .github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml
+   - Paths are rooted at =codeql-lab/=
 
-  #+end_src
+   An example entry for a sink added by the editor:
+   #+BEGIN_SRC yaml
+         extensions:
+             ...
+             - addsTo:
+                     pack: codeql/java-all
+                     extensible: sinkModel
+                     data:
+                         - ["redis.clients.jedis","Jedis",true,"eval","(String)","","Argument[0]","code-injection","manual"]
+                         ...
+   #+END_SRC
 
-  In some cases (older vs code?), the file
-  : /Users/hohn/work-gh/codeql-lab/.vscode/settings.json
-  needs that entry.
+** Workspace Configuration Required
 
-  With the additions from the model editor, the query
+   To ensure that these model extensions are applied during query runs, include
+   this setting in the workspace configuration file
+   : .../codeql-lab/qllab.code-workspace
+
+   #+begin_src javascript
+     {
+         "folders": [
+             { "path": "." }
+         ],
+         "settings": {
+             "omnisharp.autoStart": false,
+             "codeQL.githubDatabase.download": "never",
+             "sarif-viewer.connectToGithubCodeScanning": "off",
+             "codeQL.cli.executablePath": "/Users/hohn/work-gh/codeql-lab/codeql/codeql",
+             "codeQL.runningQueries.useExtensionPacks": "all"
+         }
+     }
+   #+end_src
+
+   In some environments (e.g., older VS Code versions), you may also need to
+   replicate this setting in:
+   : .../codeql-lab/.vscode/settings.json
+
+* Verifying the Modeled Sink
+  Once the modeling is in place, a dataflow query like the following can be used
+  to confirm the modeled sinks:
+
   #+BEGIN_SRC java
     import java
     private import semmle.code.java.dataflow.ExternalFlow
     private import semmle.code.java.dataflow.DataFlow
 
     from DataFlow::Node n, string type
-    where sinkNode(n, type) 
-    and type = "code-injection"
+    where sinkNode(n, type) and type = "code-injection"
     select n, type
   #+END_SRC
-  lists the sink arguments to eval():
 
-  example.ql on jedis-db-local - finished in 2 seconds (14 results) [7/8/2025, 12:51:20 PM]
+  Sample query result (run on the =jedis-db-local= database):
+  - example.ql on jedis-db-local - finished in 2 seconds (14 results) 
     |  1 | script                           | code-injection |
     |  2 | getBytes(...)                    | code-injection |
     |  3 | script                           | code-injection |
@@ -277,16 +281,17 @@
     | 13 | script                           | code-injection |
     | 14 | "return {}"                      | code-injection |
 
+
 * Identify usage of injection-related models in existing queries
 
   To verify whether existing CodeQL queries make use of the injection-related
-  models, we can search for files in the `ql/java` and `ql/cpp` directories that
-  contain the string `-injection`. This string often appears in taint-tracking
+  models, we can search for files in the =ql/java= and =ql/cpp= directories that
+  contain the string =-injection=. This string often appears in taint-tracking
   configuration or query metadata.
 
 ** Java Queries
 
-   The following command locates `.ql` and `.qll` files in the Java query suite that reference `-injection`:
+   The following command locates =.ql= and =.qll= files in the Java query suite that reference =-injection=:
 
    #+BEGIN_SRC sh
      rg -l -- '-injection' ql/java | grep '\.qll*'
@@ -313,11 +318,11 @@
      ql/java/ql/src/utils/modelgenerator/internal/CaptureModels.qll
    #+END_SRC
 
-   These files include both top-level queries (under `src/Security/...`) and reusable model libraries (under `lib/semmle/...`). Experimental and framework-specific queries are also included.
+   These files include both top-level queries (under =src/Security/...=) and reusable model libraries (under =lib/semmle/...=). Experimental and framework-specific queries are also included.
 
 ** C++ Queries
 
-   Likewise, to check for C++ queries that reference `-injection`, use:
+   Likewise, to check for C++ queries that reference =-injection=, use:
 
    #+BEGIN_SRC sh
      rg -l -- '-injection' ql/cpp | grep '\.qll*'
