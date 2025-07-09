@@ -1,0 +1,199 @@
+* SQL injection example
+  This directory contains the problematic Java source code.  The rest of this
+  README describes 
+  - the [[*Setup and sample run][Setup and sample run]] for the problem,
+  - briefly describes how to [[*Identify the problem][Identify the problem]] and
+  - instructions to [[*Build the codeql database][Build the codeql database]]
+
+  The codeql query is developed in [[../session/README.org]].
+
+** Setup and sample run
+   The jdbc connector at https://github.com/xerial/sqlite-jdbc, from [[https://github.com/xerial/sqlite-jdbc/releases/download/3.36.0.1/sqlite-jdbc-3.36.0.1.jar][here]] is
+   included in the git repository.
+
+   #+BEGIN_SRC sh
+     # Use a simple headline prompt 
+     PS1='
+     \033[32m---- SQL injection demo ----\[\033[33m\033[0m\]
+     $?:$ '
+
+     
+     # Build
+     ./build.sh
+
+     # Prepare db
+     ./admin -r
+     ./admin -c
+     ./admin -s 
+
+     # Add regular user interactively
+     ./add-user 2>> users.log
+     First User
+
+     # Check
+     ./admin -s
+
+     # Add Johnny Droptable 
+     ./add-user 2>> users.log
+     Johnny'); DROP TABLE users; --
+
+     # And the problem:
+     ./admin -s
+
+     # Check the log
+     tail users.log
+   #+END_SRC
+
+** Identify the problem
+   =./add-user= is reading from =STDIN=, and writing to a database; looking at the code in
+   [[./AddUser.java]] leads to
+   : System.console().readLine();
+   for the read and 
+   : conn.createStatement().executeUpdate(query);
+   for the write.
+
+   This problem is thus a dataflow problem; in codeql terminology we have
+   - a /source/ at the =System.console().readLine();=
+   - a /sink/ at the =conn.createStatement().executeUpdate(query);=
+
+   We write codeql to identify these two, and then connect them via
+   - a /dataflow configuration/ -- for this problem, the more general /taintflow
+     configuration/. 
+
+** Build the codeql database
+   To get started, build the codeql database (adjust paths to your setup):
+   #+BEGIN_SRC sh
+     # Build the db with source commit id.
+     SRCDIR=$(pwd)
+     DB=$SRCDIR/java-sqli-$(cd $SRCDIR && git rev-parse --short HEAD)
+
+     echo $DB
+     test -d "$DB" && rm -fR "$DB"
+     mkdir -p "$DB"
+
+     cd $SRCDIR && codeql database create --language=java -s . -j 8 -v $DB --command='./build.sh'
+
+     # Check for AddUser in the db
+     unzip -v $DB/src.zip | grep AddUser
+   #+END_SRC
+
+   Then add this database directory to your VS Code =DATABASES= tab.
+
+** (optional) Build the codeql database in steps
+   For larger projects, using a single command to build everything is costly when
+   any part of the build fails.  The sequence here is also used by the GHAS
+   default setup, so familiarity with it helps in reviewing logs. 
+
+   The purpose of these sections is to illustrate the codeql commands used in
+   default setup and making the connection between the GHAS default action and the
+   CodeQL CLI explicit. 
+
+   After running default setup and downloading the log, you will see the following
+   entries embedded in the full log.  They are repeated here for completeness; you
+   can skip the command-line options for now.
+   #+BEGIN_SRC sh 
+     codeql version --format=json
+
+     codeql resolve languages --format=betterjson --extractor-options-verbosity=4 --extractor-include-aliases
+
+     codeql database init --force-overwrite --db-cluster /home/runner/work/_temp/codeql_databases --source-root=/home/runner/work/codeql-workshop-sql-injection-java/codeql-workshop-sql-injection-java --extractor-include-aliases --language=java --codescanning-config=/home/runner/work/_temp/user-config.yaml --build-mode=none --calculate-language-specific-baseline --sublanguage-file-coverage
+
+     codeql database trace-command --use-build-mode --working-dir /home/runner/work/codeql-workshop-sql-injection-java/codeql-workshop-sql-injection-java /home/runner/work/_temp/codeql_databases/java
+
+     codeql database finalize --finalize-dataset --threads=4 --ram=14567 /home/runner/work/_temp/codeql_databases/java
+
+     codeql database run-queries --ram=14567 --threads=4 /home/runner/work/_temp/codeql_databases/java --expect-discarded-cache --min-disk-free=1024 -v --intra-layer-parallelism
+
+     codeql database cleanup /home/runner/work/_temp/codeql_databases/java --cache-cleanup=brutal
+
+     codeql database bundle /home/runner/work/_temp/codeql_databases/java --output=/home/runner/work/_temp/codeql_databases/java.zip --name=java
+   #+END_SRC
+
+   
+   To build a database in steps locally, use the following sequence, adjusting
+   paths to your setup:
+   #+BEGIN_SRC sh
+     # Build the db with source commit id.
+
+     SRCDIR=$HOME/local/codeql-workshop-sql-injection-java/src
+     DB=$SRCDIR/java-sqli-$(cd $SRCDIR && git rev-parse --short HEAD)
+
+     # Check paths
+     echo "DB will be: $DB"
+     echo "SRC is in:  $SRCDIR"
+
+     # Prepare db directory
+     test -d "$DB" && rm -fR "$DB"
+     mkdir -p "$DB"
+
+     # Run the build, without --db-cluster
+     #   Init database
+     cd $SRCDIR
+     codeql database init                            \
+            --language=java                          \
+            --build-mode=none                        \
+            --source-root=.                          \
+            -v $DB
+
+     #   Repeat trace-command as needed to cover all targets
+     codeql database trace-command                   \
+            --use-build-mode                         \
+            --working-dir .                          \
+            $DB 
+
+     #   Finalize database
+     codeql database finalize                        \
+            --finalize-dataset                       \
+            --threads=4                              \
+            --ram=14567                              \
+            $DB
+
+     # Use the database; get the location
+     echo $DB
+     # /Users/hohn/local/codeql-workshop-sql-injection-java/src/java-sqli-161a1d5
+   #+END_SRC
+
+   To also analyze the database just built, we use the log's command but add an
+   explicit query name:
+   #+BEGIN_SRC sh 
+     codeql database run-queries                     \
+            --ram=14567                              \
+            --threads=4 $DB                          \
+            --expect-discarded-cache                 \
+            --min-disk-free=1024                     \
+            -v                                       \
+            --intra-layer-parallelism                \
+            --                                       \
+            ../session/simple.ql                     
+
+
+   #+END_SRC
+
+   This only gives us a bqrs file, we want sarif.  Checking help:
+   #+BEGIN_SRC text
+     codeql database run-queries --help
+     Usage: codeql database run-queries [OPTIONS] -- <database> [<query|dir|suite|pack>...]
+     [Plumbing] Run a set of queries together.
+
+     Run one or more queries against a CodeQL database, saving the results to the results
+     subdirectory of the database directory.
+
+     The results can later be converted to readable formats by codeql database interpret-results,
+     or query-for-query by with codeql bqrs decode or codeql bqrs interpret.
+   #+END_SRC
+
+   So we run the following
+   #+BEGIN_SRC sh 
+     VERSION=$(cd $SRCDIR && git rev-parse --short HEAD)
+     codeql database interpret-results                                   \
+            --format=sarifv2.1.0                                         \
+            -o simple-$VERSION.sarif  \
+            -- $DB ../session/simple.ql
+
+     echo "Results in simple-$VERSION.sarif"
+   #+END_SRC
+   We kept the output for this sample in [[./simple-161a1d5.sarif]]
+
+
+   
+

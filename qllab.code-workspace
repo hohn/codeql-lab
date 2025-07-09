@@ -5,6 +5,10 @@
 		}
 	],
 	"settings": {
-		"omnisharp.autoStart": false
+		"omnisharp.autoStart": false,
+        "codeQL.githubDatabase.download": "never",
+        "sarif-viewer.connectToGithubCodeScanning": "off",
+        "codeQL.cli.executablePath": "/Users/hohn/work-gh/codeql-lab/codeql/codeql",
+        "codeQL.runningQueries.useExtensionPacks": "all"
 	}
 }

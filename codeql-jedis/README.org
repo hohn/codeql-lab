@@ -175,3 +175,187 @@
 
 
    #+END_SRC
+
+* Modeling sqlite as dependency
+  The tree
+  : src-sqlite
+  contains a trivial sample taken from a workshop.  It uses
+  =sqlite-jdbc-3.36.0.1.jar=, so we can use it to illustrate modeling on a smaller
+  example.
+  
+* Modeling jedis as dependency
+  Running the model editor a jedis db models jedis dependencies; we need jedis
+  /as/ dependency to model it.
+
+  Using the
+  - model as depedency option
+  the query run by model editor is
+  : /Users/hohn/work-gh/codeql-lab/ql/java/ql/src/utils/modeleditor/FrameworkModeEndpoints.ql
+
+  The columns of the query
+  #+BEGIN_SRC java
+    from PublicEndpointFromSource endpoint, boolean supported, string type
+    where
+      supported = isSupported(endpoint) and
+      type = supportedType(endpoint)
+    select endpoint, endpoint.getPackageName(), endpoint.getTypeName(), endpoint.getName(),
+      endpoint.getParameterTypes(), supported,
+      endpoint.getCompilationUnit().getParentContainer().getBaseName(), type
+  #+END_SRC
+  indicate the modeling state:
+  - supported == true :: shows as 'Method already modeled' in the editor
+  - supported == false :: shows as 'Unmodeled' in the editor
+
+  Files involved:
+  - Note that just by starting =CodeQL: Method modeling=, the new file
+    : .github/codeql/extensions/jedis-db-local-java/codeql-pack.yml
+    is created.
+
+  - After selection and saving, results are in
+    : ~/work-gh/codeql-lab/.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml
+    The sink added:
+    #+BEGIN_SRC yaml
+      extensions:
+        ...
+        - addsTo:
+            pack: codeql/java-all
+            extensible: sinkModel
+          data:
+            - ["redis.clients.jedis","Jedis",true,"eval","(String)","","Argument[0]","code-injection","manual"]
+        ...
+    #+END_SRC
+
+  For the files to be picked up requires the entry
+  : "codeQL.runningQueries.useExtensionPacks": "all"
+  in 
+  : /Users/hohn/work-gh/codeql-lab/qllab.code-workspace
+  #+begin_src javascript
+    {
+        "folders": [
+            {
+                "path": "."
+            }
+        ],
+        "settings": {
+            "omnisharp.autoStart": false,
+            "codeQL.githubDatabase.download": "never",
+            "sarif-viewer.connectToGithubCodeScanning": "off",
+            "codeQL.cli.executablePath": "/Users/hohn/work-gh/codeql-lab/codeql/codeql",
+            "codeQL.runningQueries.useExtensionPacks": "all"
+        }
+    }
+
+  #+end_src
+
+  In some cases (older vs code?), the file
+  : /Users/hohn/work-gh/codeql-lab/.vscode/settings.json
+  needs that entry.
+
+  With the additions from the model editor, the query
+  #+BEGIN_SRC java
+    import java
+    private import semmle.code.java.dataflow.ExternalFlow
+    private import semmle.code.java.dataflow.DataFlow
+
+    from DataFlow::Node n, string type
+    where sinkNode(n, type) 
+    and type = "code-injection"
+    select n, type
+  #+END_SRC
+  lists the sink arguments to eval():
+
+  example.ql on jedis-db-local - finished in 2 seconds (14 results) [7/8/2025, 12:51:20 PM]
+    |  1 | script                           | code-injection |
+    |  2 | getBytes(...)                    | code-injection |
+    |  3 | script                           | code-injection |
+    |  4 | script                           | code-injection |
+    |  5 | script                           | code-injection |
+    |  6 | script                           | code-injection |
+    |  7 | "return redis.call('get','foo')" | code-injection |
+    |  8 | "return redis.call('get','foo')" | code-injection |
+    |  9 | encode(...)                      | code-injection |
+    | 10 | encode(...)                      | code-injection |
+    | 11 | "return redis.call('get','foo')" | code-injection |
+    | 12 | "return redis.call('get','foo')" | code-injection |
+    | 13 | script                           | code-injection |
+    | 14 | "return {}"                      | code-injection |
+
+* TODO Use of the models in existing queries can be checked
+  #+BEGIN_SRC sh 
+    rg -l -- '-injection' ql/java |grep '\.qll*'
+
+    hohn@ghm3 ~/work-gh/codeql-lab
+    2:$ rg -l -- '-injection' ql/java |grep '\.qll*'
+    ql/java/ql/src/Security/CWE/CWE-643/XPathInjection.ql
+    ql/java/ql/src/Security/CWE/CWE-078/ExecTainted.ql
+    ql/java/ql/src/Security/CWE/CWE-022/TaintedPath.ql
+    ql/java/ql/src/Security/CWE/CWE-117/LogInjection.ql
+    ql/java/ql/src/Security/CWE/CWE-470/FragmentInjection.ql
+    ql/java/ql/src/Security/CWE/CWE-470/FragmentInjectionInPreferenceActivity.ql
+    ql/java/ql/src/Security/CWE/CWE-730/RegexInjection.ql
+    ql/java/ql/lib/semmle/code/java/security/XsltInjection.qll
+    ql/java/ql/src/Security/CWE/CWE-090/LdapInjection.ql
+    ql/java/ql/lib/semmle/code/java/security/GroovyInjection.qll
+    ql/java/ql/lib/semmle/code/java/security/XPath.qll
+    ql/java/ql/lib/semmle/code/java/security/TaintedEnvironmentVariableQuery.qll
+    ql/java/ql/src/Security/CWE/CWE-074/XsltInjection.ql
+    ql/java/ql/src/Security/CWE/CWE-074/JndiInjection.ql
+    ql/java/ql/lib/semmle/code/java/security/MvelInjection.qll
+    ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql
+    ql/java/ql/lib/semmle/code/java/security/QueryInjection.qll
+    ql/java/ql/lib/semmle/code/java/security/CsrfUnprotectedRequestTypeQuery.qll
+    ql/java/ql/lib/semmle/code/java/security/ZipSlipQuery.qll
+    ql/java/ql/src/Security/CWE/CWE-917/OgnlInjection.ql
+    ql/java/ql/lib/semmle/code/java/security/SensitiveLoggingQuery.qll
+    ql/java/ql/lib/semmle/code/java/security/LdapInjection.qll
+    ql/java/ql/lib/semmle/code/java/security/TaintedPathQuery.qll
+    ql/java/ql/lib/semmle/code/java/security/JexlInjectionQuery.qll
+    ql/java/ql/lib/semmle/code/java/security/LogInjection.qll
+    ql/java/ql/lib/semmle/code/java/security/TemplateInjection.qll
+    ql/java/ql/lib/ext/org.apache.hadoop.hive.ql.metadata.model.yml
+    ql/java/ql/lib/semmle/code/java/security/XSS.qll
+    ql/java/ql/lib/semmle/code/java/security/JndiInjection.qll
+    ql/java/ql/lib/semmle/code/java/security/FragmentInjection.qll
+    ql/java/ql/lib/semmle/code/java/security/CommandLineQuery.qll
+    ql/java/ql/src/Security/CWE/CWE-094/SpelInjection.ql
+    ql/java/ql/lib/semmle/code/java/security/CleartextStorageAndroidFilesystemQuery.qll
+    ql/java/ql/src/Security/CWE/CWE-094/JexlInjection.ql
+    ql/java/ql/src/Security/CWE/CWE-094/MvelInjection.ql
+    ql/java/ql/src/Security/CWE/CWE-094/TemplateInjection.ql
+    ql/java/ql/src/Security/CWE/CWE-094/GroovyInjection.ql
+    ql/java/ql/lib/semmle/code/java/security/OgnlInjection.qll
+    ql/java/ql/src/experimental/Security/CWE/CWE-078/CommandInjectionRuntimeExecLocal.ql
+    ql/java/ql/src/experimental/Security/CWE/CWE-078/CommandInjectionRuntimeExec.ql
+    ql/java/ql/lib/ext/org.apache.hadoop.hive.ql.exec.model.yml
+    ql/java/ql/src/experimental/Security/CWE/CWE-078/ExecTainted.ql
+    ql/java/ql/src/experimental/Security/CWE/CWE-094/BeanShellInjection.ql
+    ql/java/ql/src/Frameworks/Spring/Violations of Best Practice/UseSetterInjection.ql
+    ql/java/ql/src/experimental/Security/CWE/CWE-094/JythonInjection.ql
+    ql/java/ql/src/experimental/Security/CWE/CWE-352/JsonpInjection.ql
+    ql/java/ql/src/experimental/Security/CWE/CWE-094/JakartaExpressionInjection.ql
+    ql/java/ql/src/experimental/Security/CWE/CWE-094/JShellInjection.ql
+    ql/java/ql/src/experimental/Security/CWE/CWE-200/AndroidFileIntentSink.qll
+    ql/java/ql/src/experimental/Security/CWE/CWE-652/XQueryInjection.ql
+    ql/java/ql/src/experimental/Security/CWE/CWE-073/FilePathInjection.ql
+    ql/java/ql/src/experimental/Security/CWE/CWE-020/Log4jJndiInjection.ql
+    ql/java/ql/src/experimental/Security/CWE/CWE-089/MyBatisMapperXmlSqlInjection.ql
+    ql/java/ql/src/experimental/Security/CWE/CWE-089/MyBatisAnnotationSqlInjection.ql
+    ql/java/ql/src/utils/modelgenerator/internal/CaptureModels.qll
+  #+END_SRC
+
+  #+BEGIN_SRC text
+    hohn@ghm3 ~/work-gh/codeql-lab
+    0:$ rg -l -- '-injection' ql/cpp |grep '\.qll*'
+    ql/cpp/ql/src/Security/CWE/CWE-078/ExecTainted.ql
+    ql/cpp/ql/src/Security/CWE/CWE-022/TaintedPath.ql
+    ql/cpp/ql/src/experimental/Security/CWE/CWE-078/WordexpTainted.ql
+    ql/cpp/ql/src/Security/CWE/CWE-089/SqlTainted.ql
+  #+END_SRC
+
+
+* TODO for java, the sqltainted query will find the sink, not the source yet.
+
+* TODO vulnerable sample
+  For .eval() to show in a query, it has to be used in an application.  So we
+  modify src-sqlite/AddUser.java for jedis.
+

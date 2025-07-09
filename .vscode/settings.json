@@ -1,0 +1,5 @@
+{
+    "codeQL.cli.executablePath": "/Users/hohn/work-gh/codeql-lab/codeql/codeql",
+    "codeQL.runningQueries.useExtensionPacks": "all"
+
+}
