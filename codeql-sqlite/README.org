@@ -1,3 +1,27 @@
+* Using sqlite to illustrate models-as-data
+  This description uses / recycles a codeql workshop.  The original instructions
+  are below: [[*SQL injection example][SQL injection example]]
+** Build the codeql database
+   To get started, build the codeql database (adjust paths to your setup):
+   #+BEGIN_SRC sh
+     # Build the db with source commit id.
+     SRCDIR=$(pwd)
+     DB=$SRCDIR/java-sqlite-$(cd $SRCDIR && git rev-parse --short HEAD).db
+
+     echo $DB
+     test -d "$DB" && rm -fR "$DB"
+     mkdir -p "$DB"
+
+     # Use the correct codeql
+     export PATH="$(cd ../codeql && pwd):$PATH"
+     codeql database create --language=java -s . -j 8 -v $DB --command='./build.sh'
+
+     # Check for AddUser in the db
+     unzip -v $DB/src.zip | grep AddUser
+   #+END_SRC
+   Then add this database directory to your VS Code =DATABASES= tab.
+
+
 * SQL injection example
   This directory contains the problematic Java source code.  The rest of this
   README describes 
@@ -65,13 +89,15 @@
    #+BEGIN_SRC sh
      # Build the db with source commit id.
      SRCDIR=$(pwd)
-     DB=$SRCDIR/java-sqli-$(cd $SRCDIR && git rev-parse --short HEAD)
+     DB=$SRCDIR/java-sqlite-$(cd $SRCDIR && git rev-parse --short HEAD).db
 
      echo $DB
      test -d "$DB" && rm -fR "$DB"
      mkdir -p "$DB"
 
-     cd $SRCDIR && codeql database create --language=java -s . -j 8 -v $DB --command='./build.sh'
+     # Use the correct codeql
+     export PATH="$(cd ../codeql && pwd):$PATH"
+     codeql database create --language=java -s . -j 8 -v $DB --command='./build.sh'
 
      # Check for AddUser in the db
      unzip -v $DB/src.zip | grep AddUser
@@ -193,7 +219,3 @@
      echo "Results in simple-$VERSION.sarif"
    #+END_SRC
    We kept the output for this sample in [[./simple-161a1d5.sarif]]
-
-
-   
-
