@@ -206,49 +206,19 @@
    - =supported = true= → shows in the UI as /"Method already modeled"/
    - =supported = false= → shown as /"Unmodeled"/
 
-**  Files Created or Modified by the Modeling Workflow
+** Files Created or Modified by the Modeling Workflow
    - Upon launching ==CodeQL: Method modeling==, a new pack manifest is created:
-     : .github/codeql/extensions/jedis-db-local-java/codeql-pack.yml
+     [[../.github/codeql/extensions/jedis-db-local-java/codeql-pack.yml]]
    - After selecting methods and saving, modeling results are written to:
-     : .github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml
-   - Paths are rooted at =codeql-lab/=
-
-   An example entry for a sink added by the editor:
-   #+BEGIN_SRC yaml
-         extensions:
-             ...
-             - addsTo:
-                     pack: codeql/java-all
-                     extensible: sinkModel
-                     data:
-                         - ["redis.clients.jedis","Jedis",true,"eval","(String)","","Argument[0]","code-injection","manual"]
-                         ...
-   #+END_SRC
+     [[../.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml]]
 
 ** Workspace Configuration Required
 
    To ensure that these model extensions are applied during query runs, include
-   this setting in the workspace configuration file
-   : .../codeql-lab/qllab.code-workspace
-
-   #+begin_src javascript
-     {
-         "folders": [
-             { "path": "." }
-         ],
-         "settings": {
-             "omnisharp.autoStart": false,
-             "codeQL.githubDatabase.download": "never",
-             "sarif-viewer.connectToGithubCodeScanning": "off",
-             "codeQL.cli.executablePath": "/Users/hohn/work-gh/codeql-lab/codeql/codeql",
-             "codeQL.runningQueries.useExtensionPacks": "all"
-         }
-     }
-   #+end_src
+   this setting in the workspace configuration file [[../qllab.code-workspace]]
 
    In some environments (e.g., older VS Code versions), you may also need to
-   replicate this setting in:
-   : .../codeql-lab/.vscode/settings.json
+   replicate this setting in [[../.vscode/settings.json]]
 
 * Verifying the Modeled Sink
   Once the modeling is in place, a dataflow query like the following can be used
@@ -280,7 +250,6 @@
     | 12 | "return redis.call('get','foo')" | code-injection |
     | 13 | script                           | code-injection |
     | 14 | "return {}"                      | code-injection |
-
 
 * Identify usage of injection-related models in existing queries
 
