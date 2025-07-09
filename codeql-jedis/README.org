@@ -280,77 +280,62 @@
     | 13 | script                           | code-injection |
     | 14 | "return {}"                      | code-injection |
 
-* TODO Use of the models in existing queries can be checked
-  #+BEGIN_SRC sh 
-    rg -l -- '-injection' ql/java |grep '\.qll*'
+* Identify usage of injection-related models in existing queries
 
-    hohn@ghm3 ~/work-gh/codeql-lab
-    2:$ rg -l -- '-injection' ql/java |grep '\.qll*'
-    ql/java/ql/src/Security/CWE/CWE-643/XPathInjection.ql
-    ql/java/ql/src/Security/CWE/CWE-078/ExecTainted.ql
-    ql/java/ql/src/Security/CWE/CWE-022/TaintedPath.ql
-    ql/java/ql/src/Security/CWE/CWE-117/LogInjection.ql
-    ql/java/ql/src/Security/CWE/CWE-470/FragmentInjection.ql
-    ql/java/ql/src/Security/CWE/CWE-470/FragmentInjectionInPreferenceActivity.ql
-    ql/java/ql/src/Security/CWE/CWE-730/RegexInjection.ql
-    ql/java/ql/lib/semmle/code/java/security/XsltInjection.qll
-    ql/java/ql/src/Security/CWE/CWE-090/LdapInjection.ql
-    ql/java/ql/lib/semmle/code/java/security/GroovyInjection.qll
-    ql/java/ql/lib/semmle/code/java/security/XPath.qll
-    ql/java/ql/lib/semmle/code/java/security/TaintedEnvironmentVariableQuery.qll
-    ql/java/ql/src/Security/CWE/CWE-074/XsltInjection.ql
-    ql/java/ql/src/Security/CWE/CWE-074/JndiInjection.ql
-    ql/java/ql/lib/semmle/code/java/security/MvelInjection.qll
-    ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql
-    ql/java/ql/lib/semmle/code/java/security/QueryInjection.qll
-    ql/java/ql/lib/semmle/code/java/security/CsrfUnprotectedRequestTypeQuery.qll
-    ql/java/ql/lib/semmle/code/java/security/ZipSlipQuery.qll
-    ql/java/ql/src/Security/CWE/CWE-917/OgnlInjection.ql
-    ql/java/ql/lib/semmle/code/java/security/SensitiveLoggingQuery.qll
-    ql/java/ql/lib/semmle/code/java/security/LdapInjection.qll
-    ql/java/ql/lib/semmle/code/java/security/TaintedPathQuery.qll
-    ql/java/ql/lib/semmle/code/java/security/JexlInjectionQuery.qll
-    ql/java/ql/lib/semmle/code/java/security/LogInjection.qll
-    ql/java/ql/lib/semmle/code/java/security/TemplateInjection.qll
-    ql/java/ql/lib/ext/org.apache.hadoop.hive.ql.metadata.model.yml
-    ql/java/ql/lib/semmle/code/java/security/XSS.qll
-    ql/java/ql/lib/semmle/code/java/security/JndiInjection.qll
-    ql/java/ql/lib/semmle/code/java/security/FragmentInjection.qll
-    ql/java/ql/lib/semmle/code/java/security/CommandLineQuery.qll
-    ql/java/ql/src/Security/CWE/CWE-094/SpelInjection.ql
-    ql/java/ql/lib/semmle/code/java/security/CleartextStorageAndroidFilesystemQuery.qll
-    ql/java/ql/src/Security/CWE/CWE-094/JexlInjection.ql
-    ql/java/ql/src/Security/CWE/CWE-094/MvelInjection.ql
-    ql/java/ql/src/Security/CWE/CWE-094/TemplateInjection.ql
-    ql/java/ql/src/Security/CWE/CWE-094/GroovyInjection.ql
-    ql/java/ql/lib/semmle/code/java/security/OgnlInjection.qll
-    ql/java/ql/src/experimental/Security/CWE/CWE-078/CommandInjectionRuntimeExecLocal.ql
-    ql/java/ql/src/experimental/Security/CWE/CWE-078/CommandInjectionRuntimeExec.ql
-    ql/java/ql/lib/ext/org.apache.hadoop.hive.ql.exec.model.yml
-    ql/java/ql/src/experimental/Security/CWE/CWE-078/ExecTainted.ql
-    ql/java/ql/src/experimental/Security/CWE/CWE-094/BeanShellInjection.ql
-    ql/java/ql/src/Frameworks/Spring/Violations of Best Practice/UseSetterInjection.ql
-    ql/java/ql/src/experimental/Security/CWE/CWE-094/JythonInjection.ql
-    ql/java/ql/src/experimental/Security/CWE/CWE-352/JsonpInjection.ql
-    ql/java/ql/src/experimental/Security/CWE/CWE-094/JakartaExpressionInjection.ql
-    ql/java/ql/src/experimental/Security/CWE/CWE-094/JShellInjection.ql
-    ql/java/ql/src/experimental/Security/CWE/CWE-200/AndroidFileIntentSink.qll
-    ql/java/ql/src/experimental/Security/CWE/CWE-652/XQueryInjection.ql
-    ql/java/ql/src/experimental/Security/CWE/CWE-073/FilePathInjection.ql
-    ql/java/ql/src/experimental/Security/CWE/CWE-020/Log4jJndiInjection.ql
-    ql/java/ql/src/experimental/Security/CWE/CWE-089/MyBatisMapperXmlSqlInjection.ql
-    ql/java/ql/src/experimental/Security/CWE/CWE-089/MyBatisAnnotationSqlInjection.ql
-    ql/java/ql/src/utils/modelgenerator/internal/CaptureModels.qll
-  #+END_SRC
+  To verify whether existing CodeQL queries make use of the injection-related
+  models, we can search for files in the `ql/java` and `ql/cpp` directories that
+  contain the string `-injection`. This string often appears in taint-tracking
+  configuration or query metadata.
 
-  #+BEGIN_SRC text
-    hohn@ghm3 ~/work-gh/codeql-lab
-    0:$ rg -l -- '-injection' ql/cpp |grep '\.qll*'
-    ql/cpp/ql/src/Security/CWE/CWE-078/ExecTainted.ql
-    ql/cpp/ql/src/Security/CWE/CWE-022/TaintedPath.ql
-    ql/cpp/ql/src/experimental/Security/CWE/CWE-078/WordexpTainted.ql
-    ql/cpp/ql/src/Security/CWE/CWE-089/SqlTainted.ql
-  #+END_SRC
+** Java Queries
+
+   The following command locates `.ql` and `.qll` files in the Java query suite that reference `-injection`:
+
+   #+BEGIN_SRC sh
+     rg -l -- '-injection' ql/java | grep '\.qll*'
+   #+END_SRC
+
+   Example output:
+
+   #+BEGIN_SRC text
+     ql/java/ql/src/Security/CWE/CWE-643/XPathInjection.ql
+     ql/java/ql/src/Security/CWE/CWE-078/ExecTainted.ql
+     ql/java/ql/src/Security/CWE/CWE-022/TaintedPath.ql
+     ql/java/ql/src/Security/CWE/CWE-117/LogInjection.ql
+     ql/java/ql/src/Security/CWE/CWE-470/FragmentInjection.ql
+     ql/java/ql/src/Security/CWE/CWE-470/FragmentInjectionInPreferenceActivity.ql
+     ql/java/ql/src/Security/CWE/CWE-730/RegexInjection.ql
+     ql/java/ql/lib/semmle/code/java/security/XsltInjection.qll
+     ql/java/ql/src/Security/CWE/CWE-090/LdapInjection.ql
+     ql/java/ql/lib/semmle/code/java/security/GroovyInjection.qll
+     ql/java/ql/lib/semmle/code/java/security/XPath.qll
+     ql/java/ql/lib/semmle/code/java/security/TaintedEnvironmentVariableQuery.qll
+     ql/java/ql/src/Security/CWE/CWE-074/XsltInjection.ql
+     ql/java/ql/src/Security/CWE/CWE-074/JndiInjection.ql
+     ...
+     ql/java/ql/src/utils/modelgenerator/internal/CaptureModels.qll
+   #+END_SRC
+
+   These files include both top-level queries (under `src/Security/...`) and reusable model libraries (under `lib/semmle/...`). Experimental and framework-specific queries are also included.
+
+** C++ Queries
+
+   Likewise, to check for C++ queries that reference `-injection`, use:
+
+   #+BEGIN_SRC sh
+     rg -l -- '-injection' ql/cpp | grep '\.qll*'
+   #+END_SRC
+
+   Example output:
+
+   #+BEGIN_SRC text
+     ql/cpp/ql/src/Security/CWE/CWE-078/ExecTainted.ql
+     ql/cpp/ql/src/Security/CWE/CWE-022/TaintedPath.ql
+     ql/cpp/ql/src/experimental/Security/CWE/CWE-078/WordexpTainted.ql
+     ql/cpp/ql/src/Security/CWE/CWE-089/SqlTainted.ql
+   #+END_SRC
+
+   These files indicate active use of injection-related taint tracking in the C++ suite as well.
 
 
 * TODO for java, the sqltainted query will find the sink, not the source yet.
