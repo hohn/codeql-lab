@@ -134,16 +134,6 @@
          19:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
        #+END_SRC
 
-
-
-   - [ ] checkkn
-     
-   - [ ] Also check RemoteFlowSource, from
-     : import semmle.code.cpp.security.FlowSources
-
-   The goal now is to supplement sources via the model editor.
-
-
 * SQL injection example
   This directory contains the problematic Java source code.  The rest of this
   README describes 
