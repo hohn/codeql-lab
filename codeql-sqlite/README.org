@@ -86,7 +86,11 @@
        + [ ] customizations in staging repo
       
      - supplement codeql: Add to models-as-data
-       
+
+       - schema in codeql: [[../ql/java/ql/lib/semmle/code/java/dataflow/internal/ExternalFlowExtensions.qll]]
+
+       - data sample: [[../.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml]]
+
 
    - [ ] checkkn
      
