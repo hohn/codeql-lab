@@ -1,6 +1,7 @@
 /**
  * @name Illustrations
  * @description Illustrations of some codeql classes.
+ * @kind table
  */
 
 import java
@@ -10,6 +11,8 @@ import QueryInjectionFlow::PathGraph
 
 // Find starting points -- UserInput etc. -- from
 // ql/cpp/ql/src/Security/CWE/CWE-089/SqlTainted.ql 
+
+// using QueryInjectionSink shows a sink.  So we're missing a source.
 
 from UserInput ui, QueryInjectionSink qsi
 select ui, qsi
