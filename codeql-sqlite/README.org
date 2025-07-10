@@ -57,7 +57,7 @@
      + check source, sink
      + we have a sink
      + but ActiveThreatModelSource finds no source
-   - [ ] We can
+   - [ ] We can supplement in different ways
      - supplement codeql: Write full manual query: already in workshop
      - supplement codeql: Add to FlowSource or a subclass
 
@@ -81,7 +81,40 @@
        #+END_SRC
        and others.
 
-       ql/java/ql/lib/Customizations.qll
+       In 
+       [[../ql/java/ql/lib/Customizations.qll]]
+       notice the comments mentioning RemoteFlowSource.
+       Use imports from [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]] 
+       but note that there are conflicts.  you will use
+       : private import semmle.code.java.dataflow.FlowSources
+       Follow this to FlowSources, and find the mentioned RemoteFlowSource
+       : abstract class RemoteFlowSource extends SourceNode
+
+       Add the custom source.  The modified [[../ql/java/ql/lib/Customizations.qll]] is
+       #+BEGIN_SRC java
+         private import semmle.code.java.dataflow.FlowSources
+
+         class ReadLine extends RemoteFlowSource {
+           ReadLine() {
+             exists(Call read |
+               read.getCallee().getName() = "readLine" and
+               read = this.asExpr()
+             )
+           }
+
+           override string getSourceType() { result = "Console readline" }
+         }
+       #+END_SRC
+
+       Note that the predicate
+       #+BEGIN_SRC java
+         module QueryInjectionFlowConfig implements DataFlow::ConfigSig {
+           predicate isSource(DataFlow::Node src) { src instanceof ActiveThreatModelSource }
+               ...;
+         }
+       #+END_SRC
+       now also returns the readLine() result -- although we extended
+       RemoteFlowSource, not ActiveThreatModelSource
 
        + [ ] customizations in staging repo
       
@@ -90,6 +123,17 @@
        - schema in codeql: [[../ql/java/ql/lib/semmle/code/java/dataflow/internal/ExternalFlowExtensions.qll]]
 
        - data sample: [[../.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml]]
+
+       In the model editor, we see a java.io.*Console.*readline'
+       #+BEGIN_SRC sh 
+         1:$ rg -i 'java.io.*Console.*readline' ql/java
+         ql/java/ql/lib/ext/generated/java.io.model.yml
+         16:      - ["java.io", "Console", False, "readLine", "()", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
+         17:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[0]", "Argument[this]", "taint", "df-generated"]
+         18:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
+         19:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
+       #+END_SRC
+
 
 
    - [ ] checkkn
