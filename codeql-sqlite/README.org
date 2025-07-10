@@ -20,6 +20,80 @@
      unzip -v $DB/src.zip | grep AddUser
    #+END_SRC
    Then add this database directory to your VS Code =DATABASES= tab.
+** Tests using a default query
+   You can run the stdlib query
+   [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]] but will get no results.
+   It does point at classes to inspect -- in particular, the source and sink
+   classes.  Run [[./Illustrations.ql]]; from the command line or vs studio code.
+   Via cli:
+   #+BEGIN_SRC sh 
+     # run query
+     codeql query run                                \
+            -v                                       \
+            --database java-sqlite-e2e555c.db        \
+            --output result.bqrs                     \
+            --threads=12                             \
+            --ram=14000                              \
+            Illustrations.ql
+
+     # format results
+     codeql bqrs decode --format=text result.bqrs | sed -n '/^Result set: #select/,$p'
+   #+END_SRC
+   This shows
+   #+BEGIN_SRC text
+     Result set: #select
+     |  ui  |  qsi  |
+     +------+-------+
+     | args | query |
+   #+END_SRC
+   In the editor, these link to
+   1. =main(ARGS)= and
+   2. =conn.createStatement().executeUpdate(QUERY);= 
+   The second is correct, but =System.console().readLine();= is not found.
+   Thus, =SqlTainted.ql= will not find anything.
+
+** TODO supplement sources via the model editor
+   - [ ] We have no flow
+     + check source, sink
+     + we have a sink
+     + but ActiveThreatModelSource finds no source
+   - [ ] We can
+     - supplement codeql: Write full manual query: already in workshop
+     - supplement codeql: Add to FlowSource or a subclass
+
+       Note: this /one area/ that just has to be known.  Browsing source will *not*
+       help you.
+
+       CodeQL reading hint:
+       : class ActiveThreatModelSource extends DataFlow::Node
+       uses
+       : this.(SourceNode).getThreatModel()
+       So following the cast (SourceNode) may be useful:
+       #+BEGIN_SRC java
+         /**
+          ,* A data flow source.
+          ,*/
+         abstract class SourceNode extends DataFlow::Node 
+       #+END_SRC
+       Following the =abstract class= is promising:
+       #+BEGIN_SRC java
+         abstract class RemoteFlowSource extends SourceNode
+       #+END_SRC
+       and others.
+
+       ql/java/ql/lib/Customizations.qll
+
+       + [ ] customizations in staging repo
+      
+     - supplement codeql: Add to models-as-data
+       
+
+   - [ ] checkkn
+     
+   - [ ] Also check RemoteFlowSource, from
+     : import semmle.code.cpp.security.FlowSources
+
+   The goal now is to supplement sources via the model editor.
 
 
 * SQL injection example
