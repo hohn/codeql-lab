@@ -10,7 +10,7 @@ import semmle.code.java.security.SqlInjectionQuery
 import QueryInjectionFlow::PathGraph
 
 // Find starting points -- UserInput etc. -- from
-// ql/cpp/ql/src/Security/CWE/CWE-089/SqlTainted.ql 
+// ../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql
 
 // using QueryInjectionSink shows a sink.  So we're missing a source.
 

@@ -214,6 +214,8 @@
 
 ** Workspace Configuration Required
 
+   WHAT SETTING?
+
    To ensure that these model extensions are applied during query runs, include
    this setting in the workspace configuration file [[../qllab.code-workspace]]
 
