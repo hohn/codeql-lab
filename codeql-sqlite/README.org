@@ -58,8 +58,8 @@
      + we have a sink
      + but ActiveThreatModelSource finds no source
    - [ ] We can supplement in different ways
-     - supplement codeql: Write full manual query: already in workshop
-     - supplement codeql: Add to FlowSource or a subclass
+** supplement codeql: Write full manual query: already in workshop
+** supplement codeql: Add to FlowSource or a subclass
 
        Note: this /one area/ that just has to be known.  Browsing source will *not*
        help you.
@@ -92,6 +92,7 @@
 
        Add the custom source.  The modified [[../ql/java/ql/lib/Customizations.qll]] is
        #+BEGIN_SRC java
+         import java
          private import semmle.code.java.dataflow.FlowSources
 
          class ReadLine extends RemoteFlowSource {
@@ -118,8 +119,7 @@
 
        + [ ] customizations in staging repo
       
-     - supplement codeql: Add to models-as-data
-
+** supplement codeql: Add to models-as-data
        - schema in codeql: [[../ql/java/ql/lib/semmle/code/java/dataflow/internal/ExternalFlowExtensions.qll]]
 
        - data sample: [[../.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml]]
@@ -133,7 +133,72 @@
          18:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
          19:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
        #+END_SRC
+       note: this file is in the generated/ tree.
 
+       The current readline modeling is in the =summaryModel= section; we need it
+       in a =sourceModel=
+       #+BEGIN_SRC yaml
+         extensions:
+           - addsTo:
+               pack: codeql/java-all
+               extensible: summaryModel
+             data:
+               ...
+               - ["java.io", "Console", False, "readLine", "()", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[0]", "Argument[this]", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument
+       #+END_SRC
+
+       The model editor will not show this because its already modeled.  To
+       illustrate text-based additions, we'll use plain text.
+       Starting from
+       #+BEGIN_SRC yaml
+         extensions:
+           - addsTo:
+               pack: codeql/java-all
+               extensible: summaryModel
+             data:
+               ...
+               - ["java.io", "Console", False, "readLine", "()", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[0]", "Argument[this]", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument
+       #+END_SRC
+       and the field information
+       #+BEGIN_SRC java
+         extensible predicate sourceModel(
+           string package, string type, boolean subtypes, string name, string signature, string ext,
+           string output, string kind, string provenance, QlBuiltins::ExtensionId madId
+         );
+       #+END_SRC
+       From
+       #+BEGIN_SRC yaml
+         # summaryModel
+         # string package, string type, boolean subtypes, string name, string signature, string ext, string input,     string output, string kind,  string provenance, QlBuiltins::ExtensionId madId
+         - ["java.io",     "Console",   False,            "readLine",  "()",             "",         "Argument[this]", "ReturnValue", "taint",      "df-generated"]
+       #+END_SRC
+
+       we can construct
+       #+BEGIN_SRC yaml
+         extensions:
+           - addsTo:
+               pack: codeql/java-all
+               extensible: sourceModel
+             data: 
+               # sourceModel
+               # string package, string type, boolean subtypes, string name, string signature, string ext,                   string output,    string kind,   string provenance, QlBuiltins::ExtensionId madId
+               - ["java.io",     "Console",   False,            "readLine",  "()",             "",                           "ReturnValue",    "remote",      "manual"]
+
+               # # from original
+               # # summaryModel
+               # # string package, string type, boolean subtypes, string name, string signature, string ext, string input,     string output, string kind,  string provenance, QlBuiltins::ExtensionId madId
+               # - ["java.io",     "Console",   False,            "readLine",  "()",             "",         "Argument[this]", "ReturnValue", "taint",      "df-generated"]
+
+       #+END_SRC
+
+       and move this into [[../.github/codeql/extensions/sqlite-db/models/sqlite.model.yml]]
+   
 * SQL injection example
   This directory contains the problematic Java source code.  The rest of this
   README describes 
