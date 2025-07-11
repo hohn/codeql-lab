@@ -1,6 +1,5 @@
 * Using sqlite to illustrate models-as-data
-  This description uses / recycles a codeql workshop.  The original instructions
-  are below: [[*SQL injection example][SQL injection example]]
+  This description uses / recycles a codeql workshop.  
 ** Build the codeql database
    To get started, build the codeql database (adjust paths to your setup):
    #+BEGIN_SRC sh
