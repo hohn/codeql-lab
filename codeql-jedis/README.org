@@ -310,9 +310,6 @@
 
 * TODO for java, the sqltainted query will find the sink, not the source yet.
   [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]]
-* TODO vulnerable sample, jedis
-  Running the model editor a jedis db models jedis dependencies; we need jedis
-  /as/ dependency to model it.
   
 * TODO vulnerable sample, sqlite
   For .eval() to show in a query, it has to be used in an application.  So we
