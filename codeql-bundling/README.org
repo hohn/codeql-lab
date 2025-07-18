@@ -41,8 +41,10 @@
       standard query/library packs.
 
       #+BEGIN_SRC sh
-        tar xzf codeql-bundle-linux64.tar.gz
-        cd codeql-bundle
+        # extract original
+        cd ~/codeql-lab
+        mkdir tmp.bundle
+        tar -zxf assets/codeql-bundle-osx64.tar.gz -C tmp.bundle
       #+END_SRC
 
    2. Understand the bundle layout
@@ -53,24 +55,138 @@
       - =qlpacks/= — all QL packs: libraries and queries
 
       Each pack is a directory containing:
-      - =codeql-pack.yml= — pack metadata and dependencies
+      - =.packinfo= - info about extensible predicates
+      - =codeql-pack.yml= — pack metadata and dependencies, including modelling
+        extensions (which are used by extensible predicates)
       - =src/= — QL libraries and queries
       - =test/= — optional regression test cases
+
+      In the shell:
+      - Get information about and source code of extensible predicates.
+        #+BEGIN_SRC sh 
+          # 
+          cd ~/codeql-lab/tmp.bundle/codeql
+
+          ls qlpacks/codeql/
+          # controlflow/         go-all/              javascript-queries/  ruby-examples/       threat-models/
+          # cpp-all/             go-examples/         mad/                 ruby-queries/        tutorial/
+          # cpp-examples/        go-queries/          python-all/          rust-all/            typeflow/
+          # cpp-queries/         java-all/            python-examples/     rust-queries/        typetracking/
+          # csharp-all/          java-examples/       python-queries/      ssa/                 typos/
+          # csharp-examples/     java-queries/        rangeanalysis/       suite-helpers/       util/
+          # csharp-queries/      javascript-all/      regex/               swift-all/           xml/
+          # dataflow/            javascript-examples/ ruby-all/            swift-queries/       yaml/
+
+          # extensible predicates are listed:
+          jq .< qlpacks/codeql/cpp-all/3.0.0/.packinfo |less
+
+          # Indent in HOV Box style
+          hovjson < qlpacks/codeql/cpp-all/3.0.0/.packinfo | less
+
+          # {
+          #   "extensible_predicate_metadata": {
+          #     "extensible_predicates": [
+          #       {
+          #         "name": "sourceModel",
+          #         "parameters": [
+          #           {"name": "namespace","type": "string"},
+          #           {"name": "type","type": "string"},
+          #           {"name": "subtypes","type": "boolean"},
+          #           {"name": "name","type": "string"},
+          #           {"name": "signature","type": "string"},
+          #           {"name": "ext","type": "string"},
+          #           {"name": "output","type": "string"},
+          #           {"name": "kind","type": "string"},
+          #           {"name": "provenance","type": "string"}
+          #         ],
+          #         "path": "semmle/code/cpp/dataflow/internal/ExternalFlowExtensions.qll",
+
+          # Following this, rooted at .../3.0.0, shows us the source of the predicates
+          less qlpacks/codeql/cpp-all/3.0.0/semmle/code/cpp/dataflow/internal/ExternalFlowExtensions.qll
+        #+END_SRC
+
+      - Examine extension data files (yaml)
+        #+BEGIN_SRC sh 
+          # 
+          tail -4 ~/codeql-lab/tmp.bundle/codeql/qlpacks/codeql/cpp-all/3.0.0/qlpack.yml
+          # dataExtensions:
+          #  - ext/*.model.yml
+          #  - ext/deallocation/*.model.yml
+          #  - ext/allocation/*.model.yml
+
+          #
+          # Is the read() function from the line
+          rg read ~/codeql-lab/codeql-dataflow-sql-injection/add-user.c
+          # 52:    count = read(STDIN_FILENO, buf, BUFSIZE - 1);
+          # present?
+
+          #
+          # Does not look like it
+          rg -i read ~/codeql-lab/tmp.bundle/codeql/qlpacks/codeql/cpp-all/3.0.0/ext/
+          # ~/codeql-lab/tmp.bundle/codeql/qlpacks/codeql/cpp-all/3.0.0/ext/Boost.Asio.model.yml
+          # 7:      - ["boost::asio", "", False, "read", "", "", "Argument[*1]", "remote", "manual"]
+          # 8:      - ["boost::asio", "", False, "read_at", "", "", "Argument[*2]", "remote", "manual"]
+          # 9:      - ["boost::asio", "", False, "read_until", "", "", "Argument[*1]", "remote", "manual"]
+          # 10:      - ["boost::asio", "", False, "async_read", "", "", "Argument[*1]", "remote", "manual"]
+          # 11:      - ["boost::asio", "", False, "async_read_at", "", "", "Argument[*2]", "remote", "manual"]
+          # 12:      - ["boost::asio", "", False, "async_read_until", "", "", "Argument[*1]", "remote", "manual"]
+
+          #
+          # or the broader search
+          rg -i read ~/codeql-lab/tmp.bundle/codeql/qlpacks/codeql/cpp* --type=yaml
+          # ~/codeql-lab/tmp.bundle/codeql/qlpacks/codeql/cpp-all/3.0.0/ext/Boost.Asio.model.yml
+          # 7:      - ["boost::asio", "", False, "read", "", "", "Argument[*1]", "remote", "manual"]
+          # 8:      - ["boost::asio", "", False, "read_at", "", "", "Argument[*2]", "remote", "manual"]
+          # 9:      - ["boost::asio", "", False, "read_until", "", "", "Argument[*1]", "remote", "manual"]
+          # 10:      - ["boost::asio", "", False, "async_read", "", "", "Argument[*1]", "remote", "manual"]
+          # 11:      - ["boost::asio", "", False, "async_read_at", "", "", "Argument[*2]", "remote", "manual"]
+          # 12:      - ["boost::asio", "", False, "async_read_until", "", "", "Argument[*1]", "remote", "manual"]
+        #+END_SRC
+
+      - Check the Customizations.qll files, for extending /existing/ queries via
+        /custom/ codeql.  Note that there isn't one for C++, but it can be added.
+        #+BEGIN_SRC sh 
+          cd  ~/codeql-lab/tmp.bundle/codeql/qlpacks/codeql && find * -name Customizations.qll
+          # csharp-all/4.0.0/Customizations.qll
+          # csharp-examples/0.0.0/.codeql/libraries/codeql/csharp-all/4.0.0/Customizations.qll
+          # csharp-queries/1.0.13/.codeql/libraries/codeql/csharp-all/4.0.0/Customizations.qll
+          # go-all/3.0.0/Customizations.qll
+          # go-examples/0.0.0/.codeql/libraries/codeql/go-all/3.0.0/Customizations.qll
+          # go-queries/1.1.4/.codeql/libraries/codeql/go-all/3.0.0/Customizations.qll
+          # java-all/5.0.0/Customizations.qll
+          # java-examples/0.0.0/.codeql/libraries/codeql/java-all/5.0.0/Customizations.qll
+          # java-queries/1.1.10/.codeql/libraries/codeql/java-all/5.0.0/Customizations.qll
+          # javascript-all/2.2.0/Customizations.qll
+          # javascript-examples/0.0.0/.codeql/libraries/codeql/javascript-all/2.2.0/Customizations.qll
+          # javascript-queries/1.2.5/.codeql/libraries/codeql/javascript-all/2.2.0/Customizations.qll
+          # python-all/3.0.0/Customizations.qll
+          # python-examples/0.0.0/.codeql/libraries/codeql/python-all/3.0.0/Customizations.qll
+          # python-queries/1.3.4/.codeql/libraries/codeql/python-all/3.0.0/Customizations.qll
+          # ruby-all/3.0.0/Customizations.qll
+          # ruby-examples/0.0.0/.codeql/libraries/codeql/ruby-all/3.0.0/Customizations.qll
+          # ruby-queries/1.1.8/.codeql/libraries/codeql/ruby-all/3.0.0/Customizations.qll
+        #+END_SRC
 
    3. Make customizations
 
       1. Choose a target pack to modify, e.g., =codeql/java-queries=
-      #+BEGIN_SRC sh
-        cd qlpacks/codeql/java-queries
-      #+END_SRC
+         #+BEGIN_SRC sh
+           cd qlpacks/codeql/java-queries
+         #+END_SRC
 
-      1. Add or modify QL modules
+      2. Decide on customization approach; you can use one or both.
+         1. models-as-data.  This means adding yaml files to provide data for
+            extensible predicates.
+         2. Extend existing classes.  This means adding subclasses and predicates
+            for base classes, to extend sink/source/flow/barrier definitions.
+
+      3. Add or modify QL modules
          1. Create =Customizations.qll= in =src/=
          2. Import and extend existing modules/predicates
 
-      2. Add or modify =.ql= files using your new predicates
+      4. Add or modify =.ql= files using your new predicates
 
-      3. Optionally run tests for the modified pack:
+      5. Optionally run tests for the modified pack:
          #+BEGIN_SRC sh
            codeql test run .
          #+END_SRC
