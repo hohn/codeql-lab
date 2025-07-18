@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+import json
+import sys
+
+MAX_INLINE_WIDTH = 80
+INDENT = 2
+
+def try_inline(obj):
+    try:
+        s = json.dumps(obj, separators=(",", ": "))
+        if len(s) <= MAX_INLINE_WIDTH and not isinstance(obj, (dict, list)) or not obj:
+            return s
+        # allow inline small dicts/arrays without nesting
+        if isinstance(obj, dict) and all(not isinstance(v, (dict, list)) for v in obj.values()):
+            return s if len(s) <= MAX_INLINE_WIDTH else None
+        if isinstance(obj, list) and all(not isinstance(v, (dict, list)) for v in obj):
+            return s if len(s) <= MAX_INLINE_WIDTH else None
+    except Exception:
+        pass
+    return None
+
+def format_json(obj, level=0):
+    inline = try_inline(obj)
+    if inline is not None:
+        return inline
+
+    pad = ' ' * (level * INDENT)
+    next_pad = ' ' * ((level + 1) * INDENT)
+
+    if isinstance(obj, dict):
+        items = []
+        for k, v in obj.items():
+            val = format_json(v, level + 1)
+            items.append(f'{next_pad}"{k}": {val}')
+        return "{\n" + ",\n".join(items) + f"\n{pad}}}"
+    elif isinstance(obj, list):
+        items = [format_json(v, level + 1) for v in obj]
+        return "[\n" + ",\n".join(f"{next_pad}{v}" for v in items) + f"\n{pad}]"
+    else:
+        return json.dumps(obj)
+
+def main():
+    obj = json.load(sys.stdin)
+    print(format_json(obj))
+
+if __name__ == "__main__":
+    main()
