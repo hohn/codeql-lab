@@ -143,6 +143,72 @@
           # 12:      - ["boost::asio", "", False, "async_read_until", "", "", "Argument[*1]", "remote", "manual"]
         #+END_SRC
 
+      - note the entry alignment and types between json spec and the yaml data
+        #+BEGIN_SRC sh 
+          cd ~/codeql-lab/tmp.bundle/codeql
+
+          hovjson < qlpacks/codeql/cpp-all/3.0.0/.packinfo | head -16
+          # {
+          #   "extensible_predicate_metadata": {
+          #     "extensible_predicates": [
+          #       {
+          #         "name": "sourceModel",
+          #         "parameters": [
+          #           {"name": "namespace","type": "string"},
+          #           {"name": "type","type": "string"},
+          #           {"name": "subtypes","type": "boolean"},
+          #           {"name": "name","type": "string"},
+          #           {"name": "signature","type": "string"},
+          #           {"name": "ext","type": "string"},
+          #           {"name": "output","type": "string"},
+          #           {"name": "kind","type": "string"},
+          #           {"name": "provenance","type": "string"}
+          #         ],
+
+          # In table form, for sourceModel
+          jq '.extensible_predicate_metadata.extensible_predicates[]
+              | select(.name == "sourceModel")
+              | .parameters[]
+              | .name ' < qlpacks/codeql/cpp-all/3.0.0/.packinfo
+          # "namespace"
+          # "type"
+          # "subtypes"
+          # "name"
+          # "signature"
+          # "ext"
+          # "output"
+          # "kind"
+          # "provenance"
+
+          rg -A 2 sourceModel qlpacks/codeql/cpp-all/3.0.0/ext/Boost.Asio.model.yml
+          # 5:      extensible: sourceModel
+          # 6-    data: # namespace, type, subtypes, name, signature, ext, output, kind, provenance
+          # 7-      - ["boost::asio", "", False, "read", "", "", "Argument[*1]", "remote", "manual"]
+        #+END_SRC
+        In table form, these are
+        
+        | "namespace"  | "boost::asio"  |
+        | "type"       | ""             |
+        | "subtypes"   | False          |
+        | "name"       | "read"         |
+        | "signature"  | ""             |
+        | "ext"        | ""             |
+        | "output"     | "Argument[*1]" |
+        | "kind"       | "remote"       |
+        | "provenance" | "manual"       |
+
+          #           {"name": "namespace","type": "string"},
+          #           {"name": "type","type": "string"},
+          #           {"name": "subtypes","type": "boolean"},
+          #           {"name": "name","type": "string"},
+          #           {"name": "signature","type": "string"},
+          #           {"name": "ext","type": "string"},
+          #           {"name": "output","type": "string"},
+          #           {"name": "kind","type": "string"},
+          #           {"name": "provenance","type": "string"}
+
+
+
       - Check the Customizations.qll files, for extending /existing/ queries via
         /custom/ codeql.  Note that there isn't one for C++, but it can be added.
         #+BEGIN_SRC sh 
