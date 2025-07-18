@@ -176,13 +176,6 @@
 
    #+END_SRC
 
-* Modeling sqlite as dependency
-  The tree
-  : src-sqlite
-  contains a trivial sample taken from a workshop.  It uses
-  =sqlite-jdbc-3.36.0.1.jar=, so we can use it to illustrate modeling on a smaller
-  example.
-  
 * Modeling Jedis as a Dependency in Model Editor
 ** Set up and run Editor
    To model =jedis= for taint analysis using the /model editor/, select the /"model
@@ -311,6 +304,16 @@
 * TODO for java, the sqltainted query will find the sink, not the source yet.
   [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]]
   
+* TODO Modeling sqlite as dependency
+  The tree [[../codeql-sqlite/]] contains a trivial sample taken from a workshop.  It
+  uses =sqlite-jdbc-3.36.0.1.jar=, so we can use it to illustrate modeling on a
+  smaller example.  This one is unusual; the function
+  java.io.Console.readLine() is already modeled, but as a taint step, not a
+  source.  We need it as source.  The model editor won't show it at all because it
+  is already modeled, 
+
+  
+
 * TODO vulnerable sample, sqlite
   For .eval() to show in a query, it has to be used in an application.  So we
   modify src-sqlite/AddUser.java for jedis.

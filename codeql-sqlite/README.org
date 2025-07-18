@@ -58,7 +58,7 @@
      + but ActiveThreatModelSource finds no source
    - [ ] We can supplement in different ways
 ** supplement codeql: Write full manual query: already in workshop
-** supplement codeql: Add to FlowSource or a subclass
+** TODO supplement codeql: Add to FlowSource or a subclass
 
        Note: this /one area/ that just has to be known.  Browsing source will *not*
        help you.
@@ -116,7 +116,7 @@
        now also returns the readLine() result -- although we extended
        RemoteFlowSource, not ActiveThreatModelSource
 
-** supplement codeql: Add to models-as-data
+** TODO supplement codeql: Add to models-as-data
        - schema in codeql: [[../ql/java/ql/lib/semmle/code/java/dataflow/internal/ExternalFlowExtensions.qll]]
 
        - data sample: [[../.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml]]

@@ -1,64 +1,9 @@
-
 [[https://imgs.xkcd.com/comics/exploits_of_a_mom.png]]
 
 (from https://xkcd.com/327/)
 
 
-* SQL injection example
-** Setup and sample run
-  #+BEGIN_SRC sh
-    # Use a simple headline prompt 
-    PS1='
-    \033[32m---- SQL injection demo ----\[\033[33m\033[0m\]
-    $?:$ '
-
-    
-    # Build
-    ./build.sh
-
-    # Prepare db
-    ./admin -r
-    ./admin -c
-    ./admin -s 
-
-    # Add regular user interactively
-    ./add-user 2>> users.log
-    First User
-
-    
-    # Regular user via "external" process
-    echo "User Outside" | ./add-user 2>> users.log
-
-    # Check
-    ./admin -s
-
-    # Add Johnny Droptable 
-    ./add-user 2>> users.log
-    Johnny'); DROP TABLE users; --
-
-    # And the problem:
-    ./admin -s
-    
-    # Check the log
-    tail users.log
-  #+END_SRC
-
-** Identify the problem
-   =./add-user= is reading from =STDIN=, and writing to a database; looking at the code in
-   [[./add-user.c]] leads to
-   : count = read(STDIN_FILENO, buf, BUFSIZE - 1);
-   for the read and 
-   : rc = sqlite3_exec(db, query, NULL, 0, &zErrMsg);
-   for the write.
-
-   This problem is thus a dataflow problem; in codeql terminology we have
-   - a /source/ at the =read(STDIN_FILENO, buf, BUFSIZE - 1);=
-   - a /sink/ at the =sqlite3_exec(db, query, NULL, 0, &zErrMsg);=
-
-   We write codeql to identify these two, and then connect them via
-   - a /dataflow configuration/ -- for this problem, the more general /taintflow
-     configuration/. 
-   
+* Using sqlite to illustrate models-as-data
 ** Build codeql database
    To get started, build the codeql database (adjust paths to your setup):
    #+BEGIN_SRC sh
@@ -75,155 +20,168 @@
    #+END_SRC
 
    Then add this database directory to your VS Code =DATABASES= tab.
+** Tests using a default query
+** TODO supplement sources via the model editor   
+** TODO supplement codeql: Add to FlowSource or a subclass
 
+       Note: this /one area/ that just has to be known.  Browsing source will *not*
+       help you.
 
-** Build codeql database in steps
-   For larger projects, using a single command to build everything is costly when
-   any part of the build fails.
-   
-   To build a database in steps, use the following sequence, adjusting paths to
-   your setup:
-   #+BEGIN_SRC sh
-     # Build the db with source commit id.
-     export PATH=$HOME/local/vmsync/codeql250:"$PATH"
-     SRCDIR=$HOME/local/codeql-training-material.cpp-sqli/cpp/codeql-dataflow-sql-injection
-     DB=$SRCDIR/cpp-sqli-$(cd $SRCDIR && git rev-parse --short HEAD)
+       CodeQL reading hint:
+       : class ActiveThreatModelSource extends DataFlow::Node
+       uses
+       : this.(SourceNode).getThreatModel()
+       So following the cast (SourceNode) may be useful:
+       #+BEGIN_SRC java
+         /**
+          ,* A data flow source.
+          ,*/
+         abstract class SourceNode extends DataFlow::Node 
+       #+END_SRC
+       Following the =abstract class= is promising:
+       #+BEGIN_SRC java
+         abstract class RemoteFlowSource extends SourceNode
+       #+END_SRC
+       and others.
 
-     # Check paths
-     echo $DB
-     echo $SRCDIR
+       In 
+       [[../ql/java/ql/lib/Customizations.qll]]
+       notice the comments mentioning RemoteFlowSource.
+       Use imports from [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]] 
+       but note that there are conflicts.  you will use
+       : private import semmle.code.java.dataflow.FlowSources
+       Follow this to FlowSources, and find the mentioned RemoteFlowSource
+       : abstract class RemoteFlowSource extends SourceNode
 
-     # Prepare db directory
-     test -d "$DB" && rm -fR "$DB"
-     mkdir -p "$DB"
+       Add the custom source.  The modified [[../ql/java/ql/lib/Customizations.qll]] is
+       #+BEGIN_SRC java
+         import java
+         private import semmle.code.java.dataflow.FlowSources
 
-     # Run the build
-     cd $SRCDIR
-     codeql database init --language=cpp -s . -v $DB
-     # Repeat trace-command as needed to cover all targets
-     codeql database trace-command -v $DB -- make 
-     codeql database finalize -j4 $DB
-   #+END_SRC
-
-   Then add this database directory to your VS Code =DATABASES= tab.
-
-** Develop the query bottom-up
-   1. Identify the /source/ part of the 
-      : read(STDIN_FILENO, buf, BUFSIZE - 1);
-      expression, the =buf= argument.  
-      Start from a =from..where..select=, then convert to a predicate.
-
-   2. Identify the /sink/ part of the
-      : sqlite3_exec(db, query, NULL, 0, &zErrMsg);
-      expression, the =query= argument.  Again start from =from..where..select=,
-      then convert to a predicate.
-
-   3. Fill in the /taintflow configuration/ boilerplate
-      #+BEGIN_SRC java
-        class CppSqli extends TaintTracking::Configuration {
-            CppSqli() { this = "CppSqli" }
-
-            override predicate isSource(DataFlow::Node node) {
-                none()
-                    }
-
-            override predicate isSink(DataFlow::Node node) {
-                none()
-                    }
-        }
-      #+END_SRC
-
-      Note that an inout-argument in C/C++ (the =buf= pointer is passed to =read=
-      and points to updated data after the return) is accessed as a codeql source
-      via
-      : source.(DataFlow::PostUpdateNode).getPreUpdateNode().asExpr()
-      instead of the usual
-      : source.asExpr()
-
-   The final query (without =isAdditionalTaintStep=) is
-   #+BEGIN_SRC java
-     /**
-      ,* @name SQLI Vulnerability
-      ,* @description Using untrusted strings in a sql query allows sql injection attacks.
-      ,* @kind path-problem
-      ,* @id cpp/SQLIVulnerable
-      ,* @problem.severity warning
-      ,*/
-
-     import cpp
-     import semmle.code.cpp.dataflow.TaintTracking
-     import DataFlow::PathGraph
-
-     class SqliFlowConfig extends TaintTracking::Configuration {
-         SqliFlowConfig() { this = "SqliFlow" }
-
-         override predicate isSource(DataFlow::Node source) {
-             // count = read(STDIN_FILENO, buf, BUFSIZE);
-             exists(FunctionCall read |
-                 read.getTarget().getName() = "read" and
-                 read.getArgument(1) = source.(DataFlow::PostUpdateNode).getPreUpdateNode().asExpr()
+         class ReadLine extends RemoteFlowSource {
+           ReadLine() {
+             exists(Call read |
+               read.getCallee().getName() = "readLine" and
+               read = this.asExpr()
              )
+           }
+
+           override string getSourceType() { result = "Console readline" }
          }
+       #+END_SRC
 
-         override predicate isSink(DataFlow::Node sink) {
-             // rc = sqlite3_exec(db, query, NULL, 0, &zErrMsg);
-             exists(FunctionCall exec |
-                 exec.getTarget().getName() = "sqlite3_exec" and
-                 exec.getArgument(1) = sink.asExpr()
-             )
+       Note that the predicate
+       #+BEGIN_SRC java
+         module QueryInjectionFlowConfig implements DataFlow::ConfigSig {
+           predicate isSource(DataFlow::Node src) { src instanceof ActiveThreatModelSource }
+               ...;
          }
-     }
+       #+END_SRC
+       now also returns the readLine() result -- although we extended
+       RemoteFlowSource, not ActiveThreatModelSource
 
-     from SqliFlowConfig conf, DataFlow::PathNode source, DataFlow::PathNode sink
-     where conf.hasFlowPath(source, sink)
-     select sink, source, sink, "Possible SQL injection"
-   #+END_SRC
+** TODO supplement codeql: Add to models-as-data
+       - schema in codeql: [[../ql/java/ql/lib/semmle/code/java/dataflow/internal/ExternalFlowExtensions.qll]]
 
-** Optional: sarif file review of the results
-   Query results are available in several output formats using the cli.  The
-   following produces the sarif format, a json-based result description.
+       - data sample: [[../.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml]]
 
-   #+BEGIN_SRC sh
-     # The setup information from before
-     export PATH=$HOME/local/vmsync/codeql250:"$PATH"
-     SRCDIR=$HOME/local/codeql-training-material.cpp-sqli/cpp/codeql-dataflow-sql-injection
-     DB=$SRCDIR/cpp-sqli-$(cd $SRCDIR && git rev-parse --short HEAD)
+       In the model editor, we see a java.io.*Console.*readline' (using =show already modeled= option)
+       #+BEGIN_SRC sh 
+         1:$ rg -i 'java.io.*Console.*readline' ql/java
+         ql/java/ql/lib/ext/generated/java.io.model.yml
+         16:      - ["java.io", "Console", False, "readLine", "()", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
+         17:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[0]", "Argument[this]", "taint", "df-generated"]
+         18:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
+         19:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
+       #+END_SRC
+       note: this file is in the generated/ tree.
 
-     # Check paths
-     echo $DB
-     echo $SRCDIR
+       The current readline modeling is in the =summaryModel= section; we need it
+       in a =sourceModel=
+       #+BEGIN_SRC yaml
+         extensions:
+           - addsTo:
+               pack: codeql/java-all
+               extensible: summaryModel
+             data:
+               ...
+               - ["java.io", "Console", False, "readLine", "()", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[0]", "Argument[this]", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument
+       #+END_SRC
 
-     # To see the help
-     codeql database analyze -h
+       The model editor will not show this because its already modeled.  To
+       illustrate text-based additions, we'll use plain text.
+       Starting from
+       #+BEGIN_SRC yaml
+         extensions:
+           - addsTo:
+               pack: codeql/java-all
+               extensible: summaryModel
+             data:
+               ...
+               - ["java.io", "Console", False, "readLine", "()", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[0]", "Argument[this]", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
+               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument
+       #+END_SRC
+       and the field information
+       #+BEGIN_SRC java
+         extensible predicate sourceModel(
+           string package, string type, boolean subtypes, string name, string signature, string ext,
+           string output, string kind, string provenance, QlBuiltins::ExtensionId madId
+         );
+       #+END_SRC
+       Starting from =summaryModel=
+       #+BEGIN_SRC yaml
+         # summaryModel
+         # string package, string type, boolean subtypes, string name, string signature, string ext, string input,     string output, string kind,  string provenance, QlBuiltins::ExtensionId madId
+         - ["java.io",     "Console",   False,            "readLine",  "()",             "",         "Argument[this]", "ReturnValue", "taint",      "df-generated"]
+       #+END_SRC
 
-     # Run a query
-     codeql database analyze                         \
-            -v                                       \
-            --ram=14000                              \
-            -j12                                     \
-            --rerun                                  \
-            --search-path ~/local/vmsync/ql          \
-            --format=sarif-latest                    \
-            --output cpp-sqli.sarif                  \
-            --                                       \
-            $DB                                      \
-            $SRCDIR/SqlInjection.ql
+       we can construct the =sourceModel=
+       #+BEGIN_SRC yaml
+         extensions:
+           - addsTo:
+               pack: codeql/java-all
+               extensible: sourceModel
+             data: 
+               # sourceModel
+               # string package, string type, boolean subtypes, string name, string signature, string ext,                   string output,    string kind,   string provenance, QlBuiltins::ExtensionId madId
+               - ["java.io",     "Console",   False,            "readLine",  "()",             "",                           "ReturnValue",    "remote",      "manual"]
 
-     # Examine the file in an editor
-     edit cpp-sqli.sarif
-   #+END_SRC
+               # # from original
+               # # summaryModel
+               # # string package, string type, boolean subtypes, string name, string signature, string ext, string input,     string output, string kind,  string provenance, QlBuiltins::ExtensionId madId
+               # - ["java.io",     "Console",   False,            "readLine",  "()",             "",         "Argument[this]", "ReturnValue", "taint",      "df-generated"]
 
-   An example of using the sarif data is in the the jq script [[./sarif-summary.jq]].
-   When run against the sarif input via 
-   #+BEGIN_SRC sh
-     jq --raw-output --join-output  -f sarif-summary.jq < cpp-sqli.sarif > cpp-sqli.txt
-   #+END_SRC
-   it produces output in a form close to that of compiler error messages:
-   #+BEGIN_SRC text
-     query-id: message line 
-         Path
-            ...
-         Path
-            ...
-   #+END_SRC
+       #+END_SRC
+
+       and move this into [[../.github/codeql/extensions/sqlite-db/models/sqlite.model.yml]]
    
+
+
+       To ensure that these model extensions are applied during query runs, include
+       this setting
+       #+begin_src javascript
+         {
+             ...,
+             "settings": {
+                 ...,
+                 "codeQL.runningQueries.useExtensionPacks": "all"
+             }
+         }
+       #+end_src
+
+       in the workspace configuration file [[../qllab.code-workspace]]
+
+       In some environments (e.g., older VS Code versions), you may also need to
+       replicate this setting in [[../.vscode/settings.json]]; there it simplifies to
+       #+begin_src javascript
+         "codeQL.runningQueries.useExtensionPacks": "all"
+       #+end_src
+
+       Now we can run [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]] again.
+
+
