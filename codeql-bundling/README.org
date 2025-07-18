@@ -1,0 +1,120 @@
+* CodeQL Bundling
+  The ultimate form of customizing CodeQL queries is building custom bundles.
+  This process is typically treated as a black box. That approach introduces
+  significant problems, especially when multiple bundles must be unified or merged.
+
+  The purpose of this module is to illustrate the steps and components involved
+  in bundling, assuming a solid understanding of Unix tools.
+
+  From a high-level deployment perspective, the typical flow is:
+
+  - Obtain released bundle B_o
+  - Modify it to create custom bundle B_m
+  - Run `codeql database analyze` with B_m to produce results R_m
+  - Review and post-process R_m
+
+  At this level, bundling appears trivial. The complexity arises within the
+  intermediate steps — especially modifying or composing bundles.
+
+  A "black-box" bundler is available at:
+  https://github.com/advanced-security/codeql-bundle.git  
+  It is also included here as a submodule: [[../extern/codeql-bundle/]]
+
+  The following sections examine each step in detail.
+
+** Get released bundle B_o
+   This is straightforward. Download a prebuilt CodeQL bundle:
+
+   #+BEGIN_SRC sh
+     wget https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.20.0/codeql-bundle-linux64.tar.gz
+     wget https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.20.0/codeql-bundle-osx64.tar.gz
+   #+END_SRC
+
+   These tarballs are also included in this repository via =git lfs= under [[../assets]].
+
+** Modify bundle B_m
+   To construct a custom bundle B_m from the base bundle B_o:
+
+   1. Unpack the bundle
+
+      A CodeQL bundle is a self-contained tarball including the CLI and all
+      standard query/library packs.
+
+      #+BEGIN_SRC sh
+        tar xzf codeql-bundle-linux64.tar.gz
+        cd codeql-bundle
+      #+END_SRC
+
+   2. Understand the bundle layout
+
+      Key directories:
+      - =codeql/= — the CLI executable
+      - =tools/= — helper tools, rarely needed directly
+      - =qlpacks/= — all QL packs: libraries and queries
+
+      Each pack is a directory containing:
+      - =codeql-pack.yml= — pack metadata and dependencies
+      - =src/= — QL libraries and queries
+      - =test/= — optional regression test cases
+
+   3. Make customizations
+
+      1. Choose a target pack to modify, e.g., =codeql/java-queries=
+      #+BEGIN_SRC sh
+        cd qlpacks/codeql/java-queries
+      #+END_SRC
+
+      1. Add or modify QL modules
+         1. Create =Customizations.qll= in =src/=
+         2. Import and extend existing modules/predicates
+
+      2. Add or modify =.ql= files using your new predicates
+
+      3. Optionally run tests for the modified pack:
+         #+BEGIN_SRC sh
+           codeql test run .
+         #+END_SRC
+
+   4. Optionally add a new QL pack
+
+      If your changes are substantial or logically separate:
+      - Create a new directory, e.g., =qlpacks/myorg/custom-queries=
+      - Add a =codeql-pack.yml= file:
+        #+BEGIN_SRC yaml
+          name: myorg/custom-queries
+          version: 0.0.1
+          dependencies:
+              codeql/java-queries: "*"
+        #+END_SRC
+      - Add QL source files in =src/=
+      - Use =import codeql/java-queries= to reuse existing logic
+      - Add =qlpack.yml= if using =codeql pack install= or testing separately
+
+   5. Rebundle (optional)
+
+      The unpacked tree can be used directly with =codeql database analyze=.
+      But to distribute or version the result, repackage it:
+      #+BEGIN_SRC sh
+        tar czf codeql-bundle-custom.tar.gz codeql-bundle/
+      #+END_SRC
+
+   *XX: REFERENCE* B_m is now a customized bundle containing your logic.
+
+** =codeql database analyze= with B_m, get results R_m
+   Run the usual analysis command using your modified bundle B_m:
+   #+BEGIN_SRC sh
+     ./codeql/codeql database analyze \
+                     <database> \
+                     --format=sarifv2.1.0 \
+                     --output=results.sarif \
+                     myorg/custom-queries
+   #+END_SRC
+
+   Adjust =--format= and output path as needed. You may also specify individual
+   =.ql= files or packs.
+
+** Review / process R_m
+   Review or consume results as normal:
+   - Use the CodeQL extension or SARIF tools to explore the output
+   - Export summaries or ingest into downstream pipelines
+   - Consider writing postprocessors for bulk result handling
