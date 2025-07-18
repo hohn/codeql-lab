@@ -8,3 +8,6 @@
 [submodule "extern/jedis"]
 	path = extern/jedis
 	url = https://github.com/hohn/jedis
+[submodule "extern/codeql-bundle"]
+	path = extern/codeql-bundle
+	url = https://github.com/advanced-security/codeql-bundle.git

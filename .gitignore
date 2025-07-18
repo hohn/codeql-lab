@@ -1,2 +1,9 @@
 # CodeQL compilation caches
 .cache/
+*.class
+*.bqrs
+codeql/
+jedis-db-local/
+tmp.*
+*.html
+*.db/
