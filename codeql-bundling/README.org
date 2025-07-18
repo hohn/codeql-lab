@@ -10,7 +10,7 @@
 
   - Obtain released bundle B_o
   - Modify it to create custom bundle B_m
-  - Run `codeql database analyze` with B_m to produce results R_m
+  - Run =codeql database analyze= with B_m to produce results R_m
   - Review and post-process R_m
 
   At this level, bundling appears trivial. The complexity arises within the
