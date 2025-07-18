@@ -66,3 +66,20 @@
 ** Additional Structure Notes
    - The original upstream README.md is preserved at [[./README-vscode-codeql-starter.md]]
 
+* Tool Setup
+  Some scripts are used here, found in [[./bin/]].  To ensure the ones written in
+  Python have access to prerequites, set up a virtual environment via 
+  #+BEGIN_SRC sh 
+    # 1. Create the virtualenv
+    python3 -m venv ~/codeql-lab/venv
+
+    # 2. Install any packages
+    source ~/codeql-lab/venv/bin/activate
+    pip install pyyaml
+  #+END_SRC
+
+  For any of these scripts to work, add them to the PATH via
+  #+BEGIN_SRC sh 
+    export PATH="$HOME/codeql-lab/bin:$PATH"
+  #+END_SRC
+
