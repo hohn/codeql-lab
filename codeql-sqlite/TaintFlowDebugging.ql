@@ -8,6 +8,7 @@
 
 import java
 import semmle.code.java.dataflow.FlowSources
+import semmle.code.java.dataflow.TaintTracking
 
 class ReadLineSource extends Source {
   ReadLineSource() { this.getMethod().hasQualifiedName("java.io", "Console", "readLine") }
@@ -19,13 +20,6 @@ class Sink extends MethodCall {
   Sink() { this.getMethod().hasQualifiedName("java.sql", "Statement", "executeUpdate") }
 }
 
-// from Sink s
-// select s, ""
-// from MethodCall mc
-// where mc.getMethod().getName() = "readLine"
-// select mc, mc.getMethod().getQualifiedName()
-import semmle.code.java.dataflow.TaintTracking
-
 module MyFlowConfiguration implements DataFlow::ConfigSig {
   predicate isSource(DataFlow::Node source) {
     //exists(Source s | source.asExpr() = s)
@@ -33,7 +27,6 @@ module MyFlowConfiguration implements DataFlow::ConfigSig {
   }
 
   predicate isSink(DataFlow::Node sink) {
-    //sink.asExpr() instanceof Sink
     exists(Sink sink2 | sink.asExpr() = sink2.getArgument(_))
     //any()
   }
