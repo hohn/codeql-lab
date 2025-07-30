@@ -95,6 +95,54 @@
    flow annotations from documentation or code examples, then generate valid YAML
    model entries automatically.
 
+   As diagram:
+   #+BEGIN_SRC text
+                                       +----------------------+
+                                       |     Modeling in      |
+                                       |       CodeQL         |
+                                       +----------+-----------+
+                                                  |
+                   +------------------------------+------------------------------+
+                   |                                                             |
+          +--------v--------+                                          +---------v---------+
+          | Direct CodeQL   |                                          |  Models-as-Data   |
+          | (QL predicates) |                                          |  (YAML + QL eval) |
+          +--------+--------+                                          +---------+---------+
+                   |                                                             |
+                   |                                                             |
+        +----------v----------+                                  +---------------v---------------+
+        | Manual customization|                                  |     YAML models via GUI       |
+        | via Customizations.qll                                 |    (Model Editor frontend)    |
+        +----------+----------+                                  +---------------+---------------+
+                   |                                                             |
+                   |                                                             |
+         +---------v---------+                                       +-----------v-----------+
+         | Java: built-in     |                                      | Java: Jedis + Console |
+         | includes .qll hook |                                      | GUI modeling examples |
+         +--------------------+                                      +------------------------+
+                   |
+                   | Manual setup needed for:
+                   v
+          +------------------------+
+          |   C / C++: requires    |
+          |   cpp.qll patch +      |
+          |   Customizations.qll   |
+          +------------------------+
+                   |
+                   v
+     +-------------------------------+
+     | Use models-as-data directly   |
+     | (YAML only, no editor)        |
+     +-------------------------------+
+                   |
+                   v
+     +-------------------------------+
+     | GPT-assisted YAML generation |
+     | from docs, code, or examples |
+     +-------------------------------+
+   #+END_SRC
+
+
 *** Review: SQLite Injection Workshop, Java
     We begin with a recap of the Java-based injection example, focusing on the
     vulnerable code in [[./codeql-sqlite-java/AddUser.java][AddUser.java]]. Following that, we examine a fully manual
