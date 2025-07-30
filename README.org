@@ -109,19 +109,23 @@
     in [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Identify usage of injection-related models in existing queries][Identify usage of injection-related models in existing queries]].
 
 *** Customizations via Model Editor: Single-function case (Java SQLite sample)
-    1. Extend the Java example using the model editor. The data and spec are present.
-       1. This sample illustrates a subtle problem with the model editor:
-          =java.io.Console.readLine()= is already modeled as a /taint step/ and
-          therefore does not appear in the editor. However, we need it modeled as a /source/,
-          which requires special handling.
-       2. Extensions included: [[./.github/codeql/extensions/sqlite-db/codeql-pack.yml]]
-       3. Extension data: [[./.github/codeql/extensions/sqlite-db/models/sqlite.model.yml]]
-       4. Explanation: [[file:~/work-gh/codeql-lab/codeql-sqlite-java/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]]
-    2. Explain how the "models-as-data" system works internally:
-       1. Use a diagnostic query to enumerate current sources and sinks.
-       2. Identify the relevant entry points (e.g., classes and QL predicates)
-          by inspecting representative queries such as:
-          [[file:~/work-gh/codeql-lab/ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql::@name Query built from user-controlled sources]]
+    We extend the Java SQLite example using the model editor, with both the
+    necessary data and specification already available. This example highlights a
+    subtle issue with the model editor: the method =java.io.Console.readLine()= is
+    already modeled as a taint *step* and therefore does not appear in the editor
+    interface, even though we need it modeled as a *source*. This requires special
+    handling. The relevant extensions are defined in
+    [[./.github/codeql/extensions/sqlite-db/codeql-pack.yml]], and the extension data
+    is provided in
+    [[./.github/codeql/extensions/sqlite-db/models/sqlite.model.yml]]. A detailed
+    explanation is available in [[file:~/work-gh/codeql-lab/codeql-sqlite-java/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]].
+
+    To support this, we explain how the "models-as-data" system works
+    internally. A diagnostic query can be used to enumerate currently recognized
+    sources and sinks. From there, the relevant entry points -- such as QL classes
+    and predicates -- can be identified by inspecting representative queries like
+    [[./ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql][SqlTainted.ql]].
+
 
 *** TODO Review: SQLite Injection Workshop (C)
     - C++ version of the workshop.
