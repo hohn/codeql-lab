@@ -205,10 +205,16 @@
     languages, making it possible to reuse modeling patterns from Java or Python
     in C/C++ contexts.
 
-** TODO codeql-bundling
-   TBD: detailed description of
-   https://github.com/advanced-security/codeql-bundle, in 
-   [[file:codeql-bundling/README.org::XX: continue]]
+** TODO CodeQL Bundling
+   This section will provide a detailed walkthrough of the CodeQL bundling process
+   using the CLI tool at https://github.com/advanced-security/codeql-bundle. This
+   tool enables custom pack composition and is necessary when extending language
+   libraries (e.g., adding `Customizations.qll` support for C/C++).
+
+   While the official tool is somewhat of a black box, we will demystify the
+   underlying structure and show how to build, inspect, and deploy custom bundles
+   from source. Notes and scripts will be collected in
+   [[file:codeql-bundling/README.org::XX: continue]].
 
 * Tool Setup
   Some scripts are used here, found in [[./bin/]].  To ensure the ones written in
