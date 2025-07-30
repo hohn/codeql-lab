@@ -78,20 +78,34 @@
 
 ** Modeling
 *** Review: SQLite Injection Workshop, Java
-    - Recap the Java-based injection example.
+    We begin with a recap of the Java-based injection example, focusing on the
+    vulnerable code in [[./codeql-sqlite-java/AddUser.java][AddUser.java]]. Following that, we examine a fully manual
+    CodeQL query available in [[./codeql-sqlite-java/full-query.ql][full-query.ql]], which was written to explicitly trace
+    tainted data through the program. Next, we explore the out-of-the-box query
+    [[./ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql][SqlTainted.ql]] included in the standard CodeQL packs, and conclude with an
+    inspection of the relevant base classes and framework modeling in
+    [[./codeql-sqlite-java/Illustrations.ql][Illustrations.ql]].
 
-*** Customizations via codeql, java
-      - codeql-dataflow-sql-injection-c/README.org, [[file:codeql-dataflow-sql-injection-c/README.org::*supplement codeql: Add to FlowSource or a subclass][supplement codeql: Add to FlowSource or a subclass]]
-      - TODO raw md from staging: codeql-dataflow-sql-injection-c/incoming.codeql-customizations-workshop.md
+*** Customizations via codeql (Java)
+    To customize CodeQL for Java, we identify and extend base classes to add
+    custom flow sources and sinks. A general explanation of this approach is
+    available in the file [[./codeql-dataflow-sql-injection-c/README.org][README.org]], particularly
+    the section [[file:codeql-dataflow-sql-injection-c/README.org::*supplement codeql: Add to FlowSource or a subclass][supplement codeql: Add to FlowSource or a subclass]]. For Java,
+    [[./ql/java/ql/lib/java.qll][java.qll]] includes [[./ql/java/ql/lib/Customizations.qll][Customizations.qll]], which provides extension points for
+    custom flow modeling -- this structure is common across most CodeQL-supported
+    languages, with the notable exception of C. Further details on this
+    customization process can be found in
+    [[./codeql-dataflow-sql-injection-c/incoming.codeql-customizations-workshop.md][incoming.codeql-customizations-workshop.md]].
 
-*** Model Editor: Single-function case (Java, SQLite sample)
+
+*** Model Editor: Single-function case (Java SQLite sample)
     1. Extend the Java example using the model editor. The data and spec are present.
        1. This sample illustrates a subtle problem with the model editor:
           =java.io.Console.readLine()= is already modeled as a /taint step/ and
           therefore does not appear in the editor. However, we need it modeled as a /source/,
           which requires special handling.
-       2. Extension spec: [[file:~/work-gh/codeql-lab/.github/codeql/extensions/sqlite-db/codeql-pack.yml::name: pack/sqlite-db]]
-       3. Extension data: [[file:~/work-gh/codeql-lab/.github/codeql/extensions/sqlite-db/models/sqlite.model.yml::extensions:]]
+       2. Extensions included: [[./.github/codeql/extensions/sqlite-db/codeql-pack.yml]]
+       3. Extension data: [[./.github/codeql/extensions/sqlite-db/models/sqlite.model.yml]]
        4. Explanation: [[file:~/work-gh/codeql-lab/codeql-sqlite-java/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]]
     2. Explain how the "models-as-data" system works internally:
        1. Use a diagnostic query to enumerate current sources and sinks.
@@ -139,7 +153,7 @@
     - The model definition files exist
     - Data files exist
     - There is no editor
-    - Generate YAML manually.
+    - Generate YAML manually
     
     - Use the C version of the SQLite injection workshop as reinforcement.
       1. Code: [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/add-user.c]]
