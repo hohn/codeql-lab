@@ -154,29 +154,30 @@
     languages, making it possible to reuse modeling patterns from Java or Python
     in C/C++ contexts.
 
-*** TODO Use models-as-data QL code directly (no graphical editor).
-    summary
-    - The model definition files exist
-    - Data files exist
-    - There is no editor
-    - Generate YAML manually
-    
-    - Use the C version of the SQLite injection workshop as reinforcement.
-      1. Code: [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/add-user.c]]
-      2. Query: [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/SqlInjection.ql]]
-    - Apply models-as-data QL logic directly (no graphical editor).
-      1. [ ] Add model for: =count = read(STDIN_FILENO, buf, BUFSIZE);=
-      2. [ ] Add model for: =rc = sqlite3_exec(db, query, NULL, 0, &zErrMsg);=
-      3. [X] Reference Java version (structure only, not editor): [[file:~/work-gh/codeql-lab/codeql-sqlite-java/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]]
-      4. [ ] C-specific walkthrough: [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]]
-    - Manually define YAML models for standard functions (e.g., =read=) and test propagation via QL.
+*** Use models-as-data QL code directly (no graphical editor)
+    This section focuses on applying the models-as-data system without using the
+    graphical model editor. While model definition files and supporting data
+    already exist, we manually author YAML files for new models. This approach is
+    especially relevant for C, where graphical tooling is limited or nonexistent.
 
-    - customizations using models-as-data, via text
-      - continue with codeql-dataflow-sql-injection-c
-      - The ./ql/cpp/ql/src/Security/CWE/CWE-089/SqlTainted.ql query works out of
-        the box
-      - Add =char* get_user_info()= as extra source for illustration
+    As reinforcement, we use the C version of the SQLite injection workshop:
+    - The code sample is at [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/add-user.c]].
+    - The accompanying query is [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/SqlInjection.ql]].
 
+    We extend this example by modeling key functions manually:
+    - Add a source model for =count = read(STDIN_FILENO, buf, BUFSIZE);=
+    - Add a sink model for =rc = sqlite3_exec(db, query, NULL, 0, &zErrMsg);=
+
+    For reference, see the Java version’s structure (but not the graphical
+    editor): [[file:~/work-gh/codeql-lab/codeql-sqlite-java/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]], and the corresponding
+    C-specific walkthrough: [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]].
+
+    We demonstrate how to define YAML-based models for standard functions like
+    =read()= and verify their effect using the out-of-the-box query
+    [[./ql/cpp/ql/src/Security/CWE/CWE-089/SqlTainted.ql][SqlTainted.ql]]. As an additional example, we introduce the higher-level,
+    redundant =char* get_user_info()= as a custom source—even though it internally
+    calls a function already modeled as a source—to illustrate how user-defined
+    extensions propagate through the query logic.
 
 ** TODO codeql-bundling
 
