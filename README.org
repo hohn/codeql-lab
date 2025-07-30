@@ -132,7 +132,7 @@
 
 *** Extending Queries with Customizations.qll for C
     While most CodeQL-supported languages provide out-of-the-box support for
-    `Customizations.qll`, C and C++ do not include this by default. However, it is
+    =Customizations.qll=, C and C++ do not include this by default. However, it is
     possible to enable such support by building a custom CodeQL bundle. This can
     be done using the CLI tool at
     https://github.com/advanced-security/codeql-bundle. Since the tool functions
@@ -141,13 +141,13 @@
 
     A working demonstration is available in
     [[./codeql-dataflow-sql-injection-c/README.org]]. In languages like Java,
-    `Customizations.qll` is included automatically via imports from
-    `<language>.qll`, such as [[./ql/java/ql/lib/java.qll][java.qll]] importing [[./ql/java/ql/lib/Customizations.qll][Customizations.qll]], which defines
+    =Customizations.qll= is included automatically via imports from
+    =<language>.qll=, such as [[./ql/java/ql/lib/java.qll][java.qll]] importing [[./ql/java/ql/lib/Customizations.qll][Customizations.qll]], which defines
     user-extensible predicates for flow modeling.
 
     For C/C++, the process requires explicit modification:
-    1. Modify `ql/cpp/ql/lib/cpp.qll` to import `Customizations.qll`.
-    2. Create and populate `ql/cpp/ql/lib/Customizations.qll` with custom sources/sinks or extensions.
+    1. Modify =ql/cpp/ql/lib/cpp.qll= to import =Customizations.qll=.
+    2. Create and populate =ql/cpp/ql/lib/Customizations.qll= with custom sources/sinks or extensions.
     3. Rebuild the CodeQL bundle to include these changes.
 
     This customization enables consistent user-defined flow modeling across
