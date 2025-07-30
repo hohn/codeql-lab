@@ -83,7 +83,7 @@
        In 
        [[../ql/java/ql/lib/Customizations.qll]]
        notice the comments mentioning RemoteFlowSource.
-       Use imports from [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]] 
+       Use imports from [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]]
        but note that there are conflicts.  you will use
        : private import semmle.code.java.dataflow.FlowSources
        Follow this to FlowSources, and find the mentioned RemoteFlowSource

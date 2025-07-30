@@ -207,9 +207,7 @@
           #           {"name": "kind","type": "string"},
           #           {"name": "provenance","type": "string"}
 
-
-
-      - Check the Customizations.qll files, for extending /existing/ queries via
+      - <<XX: continue>> Check the Customizations.qll files, for extending /existing/ queries via
         /custom/ codeql.  Note that there isn't one for C++, but it can be added.
         #+BEGIN_SRC sh 
           cd  ~/codeql-lab/tmp.bundle/codeql/qlpacks/codeql && find * -name Customizations.qll
