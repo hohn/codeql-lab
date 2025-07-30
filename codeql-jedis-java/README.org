@@ -305,7 +305,7 @@
   [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]]
   
 * TODO Modeling sqlite as dependency
-  The tree [[../codeql-sqlite/]] contains a trivial sample taken from a workshop.  It
+  The tree [[../codeql-sqlite-java/]] contains a trivial sample taken from a workshop.  It
   uses =sqlite-jdbc-3.36.0.1.jar=, so we can use it to illustrate modeling on a
   smaller example.  This one is unusual; the function
   java.io.Console.readLine() is already modeled, but as a taint step, not a

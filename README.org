@@ -61,7 +61,7 @@
    - A prebuilt CodeQL CLI binary is included:
      : 1104625939  assets/codeql-osx64.zip
    - Project-specific repositories can be added directly under the root.
-     Example: the C dataflow workshop in =./codeql-dataflow-sql-injection=
+     Example: the C dataflow workshop in =./codeql-dataflow-sql-injection-c=
 
 ** Additional Structure Notes
    - The original upstream README.md is preserved at [[./README-vscode-codeql-starter.md]]
@@ -71,8 +71,8 @@
 ** Data Flow 
 *** Debugging data flow config (instead of taint flow), Java
     We can illustrate taint-flow debugging in the Java SQL injection sample
-    - [[./codeql-sqlite/TaintFlowDebugging.ql]]
-    - [[./codeql-sqlite/TaintFlowDebugging.md]]
+    - [[./codeql-sqlite-java/TaintFlowDebugging.ql]]
+    - [[./codeql-sqlite-java/TaintFlowDebugging.md]]
 
 *** Debugging data flow config (instead of taint flow), C
 
@@ -81,34 +81,41 @@
     - Recap the Java-based injection example.
 
 *** Customizations via codeql, java
-      - codeql-dataflow-sql-injection/README.org, [[file:codeql-dataflow-sql-injection/README.org::*supplement codeql: Add to FlowSource or a subclass][supplement codeql: Add to FlowSource or a subclass]]
-      - TODO raw md from staging: codeql-dataflow-sql-injection/incoming.codeql-customizations-workshop.md
+      - codeql-dataflow-sql-injection-c/README.org, [[file:codeql-dataflow-sql-injection-c/README.org::*supplement codeql: Add to FlowSource or a subclass][supplement codeql: Add to FlowSource or a subclass]]
+      - TODO raw md from staging: codeql-dataflow-sql-injection-c/incoming.codeql-customizations-workshop.md
 
-*** Model Editor: Simplest Case, Java
-    - Extend the Java example using the model editor.
-    - Explain how "models-as-data" works under the hood.
-    - customizations using models-as-data, via model editor
-      - editor as illustration tool
-    - customizations using models-as-data, via text
-      - continue with codeql-dataflow-sql-injection
-      - [[file:codeql-dataflow-sql-injection/README.org::*supplement codeql: Add to models-as-data][supplement codeql: Add to models-as-data]]
+*** Model Editor: Single-function case (Java, SQLite sample)
+    1. Extend the Java example using the model editor. The data and spec are present.
+       1. This sample illustrates a subtle problem with the model editor:
+          =java.io.Console.readLine()= is already modeled as a /taint step/ and
+          therefore does not appear in the editor. However, we need it modeled as a /source/,
+          which requires special handling.
+       2. Extension spec: [[file:~/work-gh/codeql-lab/.github/codeql/extensions/sqlite-db/codeql-pack.yml::name: pack/sqlite-db]]
+       3. Extension data: [[file:~/work-gh/codeql-lab/.github/codeql/extensions/sqlite-db/models/sqlite.model.yml::extensions:]]
+       4. Explanation: [[file:~/work-gh/codeql-lab/codeql-sqlite-java/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]]
+    2. Explain how the "models-as-data" system works internally:
+       1. Use a diagnostic query to enumerate current sources and sinks.
+       2. Identify the relevant entry points (e.g., classes and QL predicates)
+          by inspecting representative queries such as:
+          [[file:~/work-gh/codeql-lab/ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql::@name Query built from user-controlled sources]]
 
-*** Jedis Example: Scale Demonstration, Java
-    - Use Jedis (Java Redis client) to show modeling at scale.
-    - Emphasize quantity; CodeQL logic is unchanged from #2.
+*** Model Editor: Jedis Example (Java Redis client)
+    1. This sample is straightforward and has no surprises.
+    2. There are many functions, but they all follow a simple, repetitive pattern.
+    3. Use the model editor to define sources and sinks at scale.
+    4. Explanation: [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Modeling Jedis as a Dependency in Model Editor][Modeling Jedis as a Dependency in Model Editor]]
+    5. Validation: [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Verifying the Modeled Sink][Verifying the Modeled Sink]]
+    6. Query usage: [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Identify usage of injection-related models in existing queries][Identify usage of injection-related models in existing queries]]
 
 *** TODO Review: SQLite Injection Workshop (C)
     - C++ version of the workshop.
 
-*** TODO (Optional) Extending Queries with Customizations.qll
+*** TODO Extending Queries with Customizations.qll for C
     - Supported in most languages, but not C++ by default.
     - Can be enabled by building a custom CodeQL bundle.
     - Use this CLI tool: https://github.com/advanced-security/codeql-bundle
-
-    - USE language in name
-
     - Demonstrate using `codeql-lab`.
-      + in [[./codeql-sqlite/README.org]]
+      + in [[./codeql-sqlite-java/README.org]]
       + ql/cpp/ql/lib/semmle/code/cpp/security/FlowSources.qll
         #+BEGIN_SRC text
           abstract class FlowSource extends DataFlow::Node 
@@ -128,15 +135,24 @@
            : ql/cpp/ql/lib/Customizations.qll
 
 *** TODO Use models-as-data QL code directly (no graphical editor).
-    
-
-      
+    summary
     - The model definition files exist
     - Data files exist
     - There is no editor
     - Generate YAML manually.
+    
+    - Use the C version of the SQLite injection workshop as reinforcement.
+      1. Code: [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/add-user.c]]
+      2. Query: [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/SqlInjection.ql]]
+    - Apply models-as-data QL logic directly (no graphical editor).
+      1. [ ] Add model for: =count = read(STDIN_FILENO, buf, BUFSIZE);=
+      2. [ ] Add model for: =rc = sqlite3_exec(db, query, NULL, 0, &zErrMsg);=
+      3. [X] Reference Java version (structure only, not editor): [[file:~/work-gh/codeql-lab/codeql-sqlite-java/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]]
+      4. [ ] C-specific walkthrough: [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]]
+    - Manually define YAML models for standard functions (e.g., =read=) and test propagation via QL.
+
     - customizations using models-as-data, via text
-      - continue with codeql-dataflow-sql-injection
+      - continue with codeql-dataflow-sql-injection-c
       - The ./ql/cpp/ql/src/Security/CWE/CWE-089/SqlTainted.ql query works out of
         the box
       - Add =char* get_user_info()= as extra source for illustration

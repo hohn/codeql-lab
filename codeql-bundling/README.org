@@ -116,7 +116,7 @@
 
           #
           # Is the read() function from the line
-          rg read ~/codeql-lab/codeql-dataflow-sql-injection/add-user.c
+          rg read ~/codeql-lab/codeql-dataflow-sql-injection-c/add-user.c
           # 52:    count = read(STDIN_FILENO, buf, BUFSIZE - 1);
           # present?
 
