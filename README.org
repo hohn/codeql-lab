@@ -97,8 +97,18 @@
     customization process can be found in
     [[./codeql-dataflow-sql-injection-c/incoming.codeql-customizations-workshop.md][incoming.codeql-customizations-workshop.md]].
 
+*** Customizations via Model Editor: Jedis Example (Java Redis client)
+    The Jedis example is a straightforward case with no unexpected
+    behavior. Although the library contains many functions, they follow a simple
+    and repetitive pattern, making it ideal for large-scale modeling. The CodeQL
+    model editor can be used to efficiently define sources and sinks for such
+    cases. A detailed explanation is provided 
+    in [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Modeling Jedis as a Dependency in Model Editor][Modeling Jedis as a Dependency in Model Editor]], while validation of 
+    the modeled sink is discussed in [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Verifying the Modeled Sink][Verifying the Modeled Sink]]. 
+    Finally, the query-level usage of these models can be seen
+    in [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Identify usage of injection-related models in existing queries][Identify usage of injection-related models in existing queries]].
 
-*** Model Editor: Single-function case (Java SQLite sample)
+*** Customizations via Model Editor: Single-function case (Java SQLite sample)
     1. Extend the Java example using the model editor. The data and spec are present.
        1. This sample illustrates a subtle problem with the model editor:
           =java.io.Console.readLine()= is already modeled as a /taint step/ and
@@ -112,14 +122,6 @@
        2. Identify the relevant entry points (e.g., classes and QL predicates)
           by inspecting representative queries such as:
           [[file:~/work-gh/codeql-lab/ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql::@name Query built from user-controlled sources]]
-
-*** Model Editor: Jedis Example (Java Redis client)
-    1. This sample is straightforward and has no surprises.
-    2. There are many functions, but they all follow a simple, repetitive pattern.
-    3. Use the model editor to define sources and sinks at scale.
-    4. Explanation: [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Modeling Jedis as a Dependency in Model Editor][Modeling Jedis as a Dependency in Model Editor]]
-    5. Validation: [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Verifying the Modeled Sink][Verifying the Modeled Sink]]
-    6. Query usage: [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Identify usage of injection-related models in existing queries][Identify usage of injection-related models in existing queries]]
 
 *** TODO Review: SQLite Injection Workshop (C)
     - C++ version of the workshop.
