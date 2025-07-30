@@ -180,6 +180,9 @@
     extensions propagate through the query logic.
 
 ** TODO codeql-bundling
+   TBD: detailed description of
+   https://github.com/advanced-security/codeql-bundle, in 
+   [[file:codeql-bundling/README.org::XX: continue]]
 
 * Tool Setup
   Some scripts are used here, found in [[./bin/]].  To ensure the ones written in
