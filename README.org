@@ -235,37 +235,41 @@
     extensions affect propagation logic.
 
 *** (PARTIAL) Extending Queries with Customizations.qll for C
-    The manual YAML modeling approach described earlier works well for small or
-    isolated cases. However, to fully integrate with idiomatic CodeQL
-    queries—especially for large-scale or reusable analysis—you will want to
-    extend the language’s internal dataflow configuration using
-    =Customizations.qll=.
+    The manual YAML modeling approach described earlier works well for isolated or
+    prototype cases. However, for idiomatic, large-scale, or reusable CodeQL
+    analysis, it is often preferable to define custom dataflow logic directly in
+    QL—using =Customizations.qll=.
 
-    Most CodeQL-supported languages (e.g., Java, Python) include out-of-the-box
-    support for =Customizations.qll=. In these cases, the primary language module
-    (e.g., [[./ql/java/ql/lib/java.qll][java.qll]]) automatically imports [[./ql/java/ql/lib/Customizations.qll][Customizations.qll]], which defines
-    extension points for user-defined sources, sinks, and flow steps.
+    Most CodeQL-supported languages (e.g., Java, Python) include built-in support
+    for this mechanism. For example, Java’s primary entry point [[./ql/java/ql/lib/java.qll][java.qll]]
+    automatically imports [[./ql/java/ql/lib/Customizations.qll][Customizations.qll]], exposing extension points for
+    user-defined sources, sinks, and flow steps.
 
-    Unfortunately, C and C++ do not include this mechanism by default. Enabling it
-    requires modifying the language pack and rebuilding the CodeQL bundle.
+    In contrast, C and C++ do *not* support this out of the box. To enable it, you
+    must manually patch the language pack and (optionally) rebuild the CodeQL
+    bundle.
 
-    This section is *partially complete*: we illustrate the required QL changes,
-    but do *not yet include* the full bundling process. 
+    This section is *partially complete*: we document the required source-level QL
+    changes, but the bundling process is still pending.
 
-    To add Customizations support for C/C++, make the following changes:
+    To enable =Customizations.qll= support for C/C++, perform the following:
 
     1. Modify =ql/cpp/ql/lib/cpp.qll= to import your =Customizations.qll= module.
-    2. Create and populate =ql/cpp/ql/lib/Customizations.qll= with definitions for
-       new sources, sinks, or flow steps.
-    3. For full deployment: Rebuild the CodeQL bundle to reflect these changes.
+    2. Create and populate =ql/cpp/ql/lib/Customizations.qll= with new
+       source/sink/flow logic.
+    3. *For full deployment:* Rebuild the CodeQL bundle to include the updated
+       QL files.
+       - This allows portable use in CLI runs and IDE workflows.
+       - Once bundled, C/C++ customization behaves like any other supported
+         language.
+    4. *For workshops and local development:* No bundling is needed.
+       - If you run queries directly from the modified source tree, the changes
+         take effect immediately.
 
-       The rebuilt bundle can then be used in VS Code or the CLI, enabling you to
-       model C/C++ flows in a way that mirrors Java and other languages. Once this
-       bundling step is automated, custom C/C++ modeling will follow the same
-       developer workflow as any other language.
-
-    4. For workshops: The modifications have immediate effect
-
+    A working demonstration of this modification (without bundling) is provided
+    in:
+    [[./codeql-dataflow-sql-injection-c/README.org]]
+       
 ** TODO CodeQL Bundling
    This section will provide a detailed walkthrough of the CodeQL bundling process
    using the CLI tool at https://github.com/advanced-security/codeql-bundle. This
