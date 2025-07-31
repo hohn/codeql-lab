@@ -169,9 +169,12 @@
     and repetitive pattern, making it ideal for large-scale modeling. The CodeQL
     model editor can be used to efficiently define sources and sinks for such
     cases. A detailed explanation is provided 
+    OK
     in [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Modeling Jedis as a Dependency in Model Editor][Modeling Jedis as a Dependency in Model Editor]], while validation of 
+    OK
     the modeled sink is discussed in [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Verifying the Modeled Sink][Verifying the Modeled Sink]]. 
     Finally, the query-level usage of these models can be seen
+    OK
     in [[file:~/work-gh/codeql-lab/codeql-jedis-java/README.org::*Identify usage of injection-related models in existing queries][Identify usage of injection-related models in existing queries]].
 
 *** Customizations via Model Editor: Single-function case (Java SQLite sample)
@@ -184,6 +187,7 @@
     [[./.github/codeql/extensions/sqlite-db/codeql-pack.yml]], and the extension data
     is provided in
     [[./.github/codeql/extensions/sqlite-db/models/sqlite.model.yml]]. A detailed
+    *OK*
     explanation is available in [[file:~/work-gh/codeql-lab/codeql-sqlite-java/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]].
 
     To support this, we explain how the "models-as-data" system works
@@ -195,63 +199,72 @@
 
 *** Review: SQLite Injection Workshop (C)
     This is the C version of the injection workshop, based on
-    [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/add-user.c]]. It
+    [[./codeql-dataflow-sql-injection-c/add-user.c]]. It
     serves as the basis for both the "models-as-data" manual modeling and the
-    extension via Customizations.qll.
+    extension via =Customizations.qll=.
 
-*** Use models-as-data QL code directly (no graphical editor)
-    This section focuses on applying the models-as-data system without using the
+*** (PARTIAL) Use models-as-data QL code directly (no graphical editor)
+    This section focuses on using the models-as-data system *without* the
     graphical model editor. While model definition files and supporting data
-    already exist, we manually author YAML files for new models. This approach is
-    especially relevant for C, where graphical tooling is limited or nonexistent.
+    already exist, we manually write YAML files to add or override flow
+    behavior. This approach is especially relevant for C, where graphical tooling
+    is limited or nonexistent.
 
-    As reinforcement, we use the C version of the SQLite injection workshop:
-    - The code sample is at [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/add-user.c]].
-    - The accompanying query is [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/SqlInjection.ql]].
+    As reinforcement, we reuse the C version of the SQLite injection workshop:
+    - The code sample is at
+      [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/add-user.c]].
+    - The accompanying query is
+      [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/SqlInjection.ql]].
 
-    We extend this example by modeling key functions manually:
-    - Add a source model for =count = read(STDIN_FILENO, buf, BUFSIZE);=
-    - Add a sink model for =rc = sqlite3_exec(db, query, NULL, 0, &zErrMsg);=
+    For structural reference, see the Java version’s documentation (not the editor
+    interface): [[file:~/work-gh/codeql-lab/codeql-sqlite-java/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]].  There is no separate
+    C-specific walkthrough because the YAML structure and logic are nearly
+    identical.
 
-    For reference, see the Java version’s structure (but not the graphical
-    editor): [[file:~/work-gh/codeql-lab/codeql-sqlite-java/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]], and the corresponding
-    C-specific walkthrough: [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/README.org::*Using sqlite to illustrate models-as-data][Using sqlite to illustrate models-as-data]].
+    For workshop use, we extend the example by modeling key functions manually:
+    - Add a source model for: =count = read(STDIN_FILENO, buf, BUFSIZE);=
+    - Add a sink model for: =rc = sqlite3_exec(db, query, NULL, 0, &zErrMsg);=
 
     We demonstrate how to define YAML-based models for standard functions like
-    =read()= and verify their effect using the out-of-the-box query
-    [[./ql/cpp/ql/src/Security/CWE/CWE-089/SqlTainted.ql][SqlTainted.ql]]. As an additional example, we introduce the higher-level,
-    redundant =char* get_user_info()= as a custom source—even though it internally
+    =read()= and verify their effect using the out-of-the-box query:
+    [[./ql/cpp/ql/src/Security/CWE/CWE-089/SqlTainted.ql][SqlTainted.ql]].
+
+    As an additional teaching case, we introduce the higher-level, redundant
+    function =char* get_user_info()= as a custom source—even though it internally
     calls a function already modeled as a source—to illustrate how user-defined
-    extensions propagate through the query logic.
+    extensions affect propagation logic.
 
-*** Extending Queries with Customizations.qll for C
-    The manual YAML modeling approach from the previous section works well for
-    isolated cases. However, to integrate seamlessly with idiomatic CodeQL
-    queries, we show how to extend the standard QL libraries via
-    =Customizations.qll=
+*** (PARTIAL) Extending Queries with Customizations.qll for C
+    The manual YAML modeling approach described earlier works well for small or
+    isolated cases. However, to fully integrate with idiomatic CodeQL
+    queries—especially for large-scale or reusable analysis—you will want to
+    extend the language’s internal dataflow configuration using
+    =Customizations.qll=.
 
-    While most CodeQL-supported languages provide out-of-the-box support for
-    =Customizations.qll=, C and C++ do not include this by default. However, it is
-    possible to enable such support by building a custom CodeQL bundle. This can
-    be done using the CLI tool at
-    https://github.com/advanced-security/codeql-bundle. Since the tool functions
-    largely as a black box, we provide a more detailed illustration of the
-    underlying steps.
+    Most CodeQL-supported languages (e.g., Java, Python) include out-of-the-box
+    support for =Customizations.qll=. In these cases, the primary language module
+    (e.g., [[./ql/java/ql/lib/java.qll][java.qll]]) automatically imports [[./ql/java/ql/lib/Customizations.qll][Customizations.qll]], which defines
+    extension points for user-defined sources, sinks, and flow steps.
 
-    A working demonstration is available in
-    [[./codeql-dataflow-sql-injection-c/README.org]]. In languages like Java,
-    =Customizations.qll= is included automatically via imports from
-    =<language>.qll=, such as [[./ql/java/ql/lib/java.qll][java.qll]] importing [[./ql/java/ql/lib/Customizations.qll][Customizations.qll]], which defines
-    user-extensible predicates for flow modeling.
+    Unfortunately, C and C++ do not include this mechanism by default. Enabling it
+    requires modifying the language pack and rebuilding the CodeQL bundle.
 
-    For C/C++, the process requires explicit modification:
-    1. Modify =ql/cpp/ql/lib/cpp.qll= to import =Customizations.qll=.
-    2. Create and populate =ql/cpp/ql/lib/Customizations.qll= with custom sources/sinks or extensions.
-    3. Rebuild the CodeQL bundle to include these changes.
+    This section is *partially complete*: we illustrate the required QL changes,
+    but do *not yet include* the full bundling process. 
 
-    This customization enables consistent user-defined flow modeling across
-    languages, making it possible to reuse modeling patterns from Java or Python
-    in C/C++ contexts.
+    To add Customizations support for C/C++, make the following changes:
+
+    1. Modify =ql/cpp/ql/lib/cpp.qll= to import your =Customizations.qll= module.
+    2. Create and populate =ql/cpp/ql/lib/Customizations.qll= with definitions for
+       new sources, sinks, or flow steps.
+    3. For full deployment: Rebuild the CodeQL bundle to reflect these changes.
+
+       The rebuilt bundle can then be used in VS Code or the CLI, enabling you to
+       model C/C++ flows in a way that mirrors Java and other languages. Once this
+       bundling step is automated, custom C/C++ modeling will follow the same
+       developer workflow as any other language.
+
+    4. For workshops: The modifications have immediate effect
 
 ** TODO CodeQL Bundling
    This section will provide a detailed walkthrough of the CodeQL bundling process
