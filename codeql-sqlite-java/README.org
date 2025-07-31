@@ -124,109 +124,109 @@
 
    to include =readLine()= even though we extended =RemoteFlowSource=.
 
-** TODO supplement codeql: Add to models-as-data
-       - schema in codeql: [[../ql/java/ql/lib/semmle/code/java/dataflow/internal/ExternalFlowExtensions.qll]]
+** Supplement CodeQL: Add to models-as-data
 
-       - data sample: [[../.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml]]
+   To modify the dataflow configuration using the models-as-data mechanism, we will explicitly define a new source model for =java.io.Console.readLine=. This function is already modeled in CodeQL—but only as a =summaryModel=. For SQL injection tracking, we want to treat it as a =sourceModel=. Since it’s already covered in auto-generated data, it does not appear in the model editor interface.
 
-       In the model editor, we see a java.io.*Console.*readline' (using =show already modeled= option)
-       #+BEGIN_SRC sh 
-         1:$ rg -i 'java.io.*Console.*readline' ql/java
-         ql/java/ql/lib/ext/generated/java.io.model.yml
-         16:      - ["java.io", "Console", False, "readLine", "()", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
-         17:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[0]", "Argument[this]", "taint", "df-generated"]
-         18:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
-         19:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
-       #+END_SRC
-       note: this file is in the generated/ tree.  There are others.
+   We begin by locating the existing model:
 
-       The current readline modeling is in the =summaryModel= section; we need it
-       in a =sourceModel=
-       #+BEGIN_SRC yaml
-         extensions:
-           - addsTo:
-               pack: codeql/java-all
-               extensible: summaryModel
-             data:
-               ...
-               - ["java.io", "Console", False, "readLine", "()", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
-               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[0]", "Argument[this]", "taint", "df-generated"]
-               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
-               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument
-       #+END_SRC
+   - The model schema used for extensions is defined here:
+     [[../ql/java/ql/lib/semmle/code/java/dataflow/internal/ExternalFlowExtensions.qll]]
 
-       The model editor will not show this because its already modeled.  To
-       illustrate text-based additions, we'll use plain text.
-       Starting from
-       #+BEGIN_SRC yaml
-         extensions:
-           - addsTo:
-               pack: codeql/java-all
-               extensible: summaryModel
-             data:
-               ...
-               - ["java.io", "Console", False, "readLine", "()", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
-               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[0]", "Argument[this]", "taint", "df-generated"]
-               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
-               - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument
-       #+END_SRC
-       and the field information
-       #+BEGIN_SRC java
-         extensible predicate sourceModel(
-           string package, string type, boolean subtypes, string name, string signature, string ext,
-           string output, string kind, string provenance, QlBuiltins::ExtensionId madId
-         );
-       #+END_SRC
-       Starting from =summaryModel=
-       #+BEGIN_SRC yaml
-         # summaryModel
-         # string package, string type, boolean subtypes, string name, string signature, string ext, string input,     string output, string kind,  string provenance, QlBuiltins::ExtensionId madId
-         - ["java.io",     "Console",   False,            "readLine",  "()",             "",         "Argument[this]", "ReturnValue", "taint",      "df-generated"]
-       #+END_SRC
+   - For reference, see a sample manually written model YAML:
+     [[../.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml]]
 
-       we can construct the =sourceModel=
-       #+BEGIN_SRC yaml
-         extensions:
-           - addsTo:
-               pack: codeql/java-all
-               extensible: sourceModel
-             data: 
-               # sourceModel
-               # string package, string type, boolean subtypes, string name, string signature, string ext,                   string output,    string kind,   string provenance, QlBuiltins::ExtensionId madId
-               - ["java.io",     "Console",   False,            "readLine",  "()",             "",                           "ReturnValue",    "remote",      "manual"]
+   - To verify that readline is already modeled, use ripgrep:
+     #+BEGIN_SRC sh 
+       1:$ rg -i 'java.io.*Console.*readline' ql/java
+       ql/java/ql/lib/ext/generated/java.io.model.yml
+       16:      - ["java.io", "Console", False, "readLine", "()", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
+       17:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[0]", "Argument[this]", "taint", "df-generated"]
+       18:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
+       19:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
+     #+END_SRC
 
-               # # from original
-               # # summaryModel
-               # # string package, string type, boolean subtypes, string name, string signature, string ext, string input,     string output, string kind,  string provenance, QlBuiltins::ExtensionId madId
-               # - ["java.io",     "Console",   False,            "readLine",  "()",             "",         "Argument[this]", "ReturnValue", "taint",      "df-generated"]
+   Note: this model is auto-generated (=df-generated=) and appears under =summaryModel=.
 
-       #+END_SRC
+   Here is an example of that structure:
+   #+BEGIN_SRC yaml
+     extensions:
+       - addsTo:
+           pack: codeql/java-all
+           extensible: summaryModel
+         data:
+           ...
+           - ["java.io", "Console", False, "readLine", "()", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
+           - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[0]", "Argument[this]", "taint", "df-generated"]
+           - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
+           - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument
+   #+END_SRC
 
-       and move this into [[../.github/codeql/extensions/sqlite-db/models/sqlite.model.yml]]
-   
+   Because this modeling is already present, the model editor UI will hide the
+   function. To override it, we’ll define a new source manually in plain YAML.
 
+   First, recall the schema definition for =sourceModel=:
 
-       To ensure that these model extensions are applied during query runs, include
-       this setting
-       #+begin_src javascript
-         {
+   #+BEGIN_SRC java
+     extensible predicate sourceModel(
+       string package, string type, boolean subtypes, string name, string signature, string ext,
+       string output, string kind, string provenance, QlBuiltins::ExtensionId madId
+     );
+   #+END_SRC
+
+   Starting from the existing =summaryModel=,
+
+   #+BEGIN_SRC yaml
+     # summaryModel
+     # string package, string type, boolean subtypes, string name, string signature, string ext, string input,     string output, string kind,  string provenance, QlBuiltins::ExtensionId madId
+     - ["java.io",     "Console",   False,            "readLine",  "()",             "",         "Argument[this]", "ReturnValue", "taint",      "df-generated"]
+   #+END_SRC
+
+   we construct the following =sourceModel= definition instead:
+
+   #+BEGIN_SRC yaml
+     extensions:
+       - addsTo:
+           pack: codeql/java-all
+           extensible: sourceModel
+         data: 
+           # sourceModel
+           # string package, string type, boolean subtypes, string name, string signature, string ext,                   string output,    string kind,   string provenance, QlBuiltins::ExtensionId madId
+           - ["java.io",     "Console",   False,            "readLine",  "()",             "",                           "ReturnValue",    "remote",      "manual"]
+
+           # # from original
+           # # summaryModel
+           # # string package, string type, boolean subtypes, string name, string signature, string ext, string input,     string output, string kind,  string provenance, QlBuiltins::ExtensionId madId
+           # - ["java.io",     "Console",   False,            "readLine",  "()",             "",         "Argument[this]", "ReturnValue", "taint",      "df-generated"]
+   #+END_SRC
+
+   Place this in:
+
+   [[../.github/codeql/extensions/sqlite-db/models/sqlite.model.yml]]
+
+   To ensure the model extension is applied, you must instruct the CodeQL
+   extension to include all extension packs. In =qllab.code-workspace=, add:
+
+   #+BEGIN_SRC javascript
+     {
+         ...,
+         "settings": {
              ...,
-             "settings": {
-                 ...,
-                 "codeQL.runningQueries.useExtensionPacks": "all"
-             }
+             "codeQL.runningQueries.useExtensionPacks": "all"
          }
-       #+end_src
+     }
+   #+END_SRC
 
-       in the workspace configuration file [[../qllab.code-workspace]]
+   If needed, also include this setting in =.vscode/settings.json=:
 
-       In some environments (e.g., older VS Code versions), you may also need to
-       replicate this setting in [[../.vscode/settings.json]]; there it simplifies to
-       #+begin_src javascript
-         "codeQL.runningQueries.useExtensionPacks": "all"
-       #+end_src
+   #+BEGIN_SRC javascript
+     "codeQL.runningQueries.useExtensionPacks": "all"
+   #+END_SRC
 
-       Now we can run [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]] again.
+   Now re-run the query:
 
+   [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]]
+
+   You should see flows that originate at =readLine()= and reach the SQL sink. This confirms that your manual =sourceModel= extension is effective.
 
 
