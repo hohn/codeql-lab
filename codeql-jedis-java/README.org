@@ -121,20 +121,20 @@
      + isNeutralReturn(...)
      + isBulkGetterLike(...)
 
-     These are imported by:
+   These are imported by:
      - CaptureSinkModels.ql
      - CaptureSummaryModels.ql
      - CaptureContentSummaryModels.ql
      - CaptureHeuristicSummaryModels.ql
 
-   - Design: Three Modeling Targets
+   Design: Three Modeling Targets
      | Module                       | Implements                      | Purpose                                          |
      | ---------------------------- | ------------------------------- | ------------------------------------------------ |
-     | `SummaryModelGeneratorInput` | `SummaryModelGeneratorInputSig` | Models pass-through or computed summaries        |
-     | `SourceModelGeneratorInput`  | `SourceModelGeneratorInputSig`  | Models user-controlled or origin taint sources   |
-     | `SinkModelGeneratorInput`    | `SinkModelGeneratorInputSig`    | Models taint sinks (e.g., logging, SQL, network) |
+     | =SummaryModelGeneratorInput= | =SummaryModelGeneratorInputSig= | Models pass-through or computed summaries        |
+     | =SourceModelGeneratorInput=  | =SourceModelGeneratorInputSig=  | Models user-controlled or origin taint sources   |
+     | =SinkModelGeneratorInput=    | =SinkModelGeneratorInputSig=    | Models taint sinks (e.g., logging, SQL, network) |
      
-   - Shared Input System
+   Shared Input System
      ModelGeneratorCommonInput provides:
      - Name formatting
      - Type filtering (isRelevantType)
@@ -143,7 +143,7 @@
 
      This gives a stable data interface to the rest of the system.
 
-   - Filtering logic
+   Filtering logic
      #+BEGIN_SRC java
        private predicate relevant(Callable api) {
          api.isPublic() and
@@ -187,30 +187,30 @@
    This query defines:
    #+BEGIN_SRC java
      from PublicEndpointFromSource endpoint, boolean supported, string type
-         where
+     where
          supported = isSupported(endpoint) and
          type = supportedType(endpoint)
-         select endpoint, endpoint.getPackageName(), endpoint.getTypeName(), endpoint.getName(),
+     select endpoint, endpoint.getPackageName(), endpoint.getTypeName(), endpoint.getName(),
          endpoint.getParameterTypes(), supported,
          endpoint.getCompilationUnit().getParentContainer().getBaseName(), type
    #+END_SRC
 
-   There is a direct connection between output columns in the model editor:
+   There is a direct connection between this query and output columns in the model
+   editor:
    - =supported = true= → shows in the UI as /"Method already modeled"/
    - =supported = false= → shown as /"Unmodeled"/
 
 ** Files Created or Modified by the Modeling Workflow
-   - Upon launching ==CodeQL: Method modeling==, a new pack manifest is created:
-     [[../.github/codeql/extensions/jedis-db-local-java/codeql-pack.yml]]
+   - Upon launching =CodeQL: Method modeling=, a new pack manifest is created:
+     [[../.github/codeql/extensions/jedis-db-local-java/codeql-pack.yml][codeql-pack.yml]]
    - After selecting methods and saving, modeling results are written to:
-     [[../.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml]]
+     [[../.github/codeql/extensions/jedis-db-local-java/models/redis.clients.jedis.model.yml][redis.clients.jedis.model.yml]]
 
 ** Workspace Configuration Required
-
-   WHAT SETTING?
-
    To ensure that these model extensions are applied during query runs, include
-   this setting in the workspace configuration file [[../qllab.code-workspace]]
+   the setting
+   : "codeQL.runningQueries.useExtensionPacks": "all"
+   in the workspace configuration file [[../qllab.code-workspace]]
 
    In some environments (e.g., older VS Code versions), you may also need to
    replicate this setting in [[../.vscode/settings.json]]
@@ -301,20 +301,52 @@
 
    These files indicate active use of injection-related taint tracking in the C++ suite as well.
 
-* TODO for java, the sqltainted query will find the sink, not the source yet.
-  [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]]
-  
-* TODO Modeling sqlite as dependency
-  The tree [[../codeql-sqlite-java/]] contains a trivial sample taken from a workshop.  It
-  uses =sqlite-jdbc-3.36.0.1.jar=, so we can use it to illustrate modeling on a
-  smaller example.  This one is unusual; the function
-  java.io.Console.readLine() is already modeled, but as a taint step, not a
-  source.  We need it as source.  The model editor won't show it at all because it
-  is already modeled, 
+* TODO Modeling Gaps in SqlTainted.ql (Java)
+  The built-in SQL injection query
+  [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]] correctly identifies the
+  sink in the Jedis sample, but not the source. This is because
+  =java.io.Console.readLine()= is modeled as a taint *step*, not a *source*. Since
+  the model editor excludes functions that are already modeled in any capacity,
+  this function is not visible for editing.
 
-  
+  To detect the source, we must override or supplement the model manually—either
+  by using the models-as-data mechanism or extending =Customizations.qll= with a
+  new source declaration.
 
-* TODO vulnerable sample, sqlite
-  For .eval() to show in a query, it has to be used in an application.  So we
-  modify src-sqlite/AddUser.java for jedis.
+* TODO Modeling SQLite as a Dependency
+  The directory [[../codeql-sqlite-java/]] contains a minimal Java sample derived from
+  a prior workshop. It uses =sqlite-jdbc-3.36.0.1.jar= and serves as a small-scale
+  test case for dependency-based modeling. This example is especially useful for
+  illustrating subtle modeling issues.
+
+  In particular, it uses =java.io.Console.readLine()=, which is already modeled as
+  a taint *step*. However, for SQL injection tracking, we need it to act as a
+  *source*. Because of its preexisting status, it does not appear in the model
+  editor. To handle this, we must add a manual source override—either as a raw
+  YAML model or as a hardcoded entry via =Customizations.qll=.
+
+* TODO Creating a Vulnerable SQLite Sample for Query Visibility
+  To ensure that taint-based queries (e.g., SqlTainted.ql) identify vulnerable
+  behavior, the sink function -- such as =.eval()= or =sqlite3_exec()= -- must
+  actually be invoked in application code. It is not sufficient for the function
+  to merely exist in a linked library or dependency. CodeQL analysis only
+  considers *reachable* code in the source tree.
+
+  To address this, we modify the file [[../codeql-sqlite-java/AddUser.java]] to
+  include a realistic, vulnerable flow that mimics typical usage patterns. For
+  example, the program should:
+
+  1. Accept user input (e.g., via =System.in=, =BufferedReader=, or
+     =Console.readLine()=),
+  2. Store it in a variable without sanitization,
+  3. Construct an SQL query using string concatenation,
+  4. Call =eval()= or =sqlite3_exec()= with the tainted query.
+
+  This guarantees that the sink is both *present* and *exercised*, allowing
+  built-in and custom CodeQL queries to detect the dataflow path from source to
+  sink.
+
+  The same flow structure used in the Jedis version can be reused here. That way,
+  we maintain consistency across modeling examples while switching the underlying
+  dependency from Redis to SQLite.
 
