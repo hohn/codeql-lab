@@ -1,9 +1,14 @@
 * Using sqlite to illustrate models-as-data
-  This description uses / recycles a codeql workshop.  
-** Build the codeql database
-   To get started, build the codeql database (adjust paths to your setup):
+
+  This section demonstrates the use of the models-as-data system by analyzing a
+  small Java application that uses the SQLite JDBC driver. The example is adapted
+  from a CodeQL workshop.
+
+** Build the CodeQL Database
+
+   To get started, build the CodeQL database for the SQLite-backed Java sample. Adjust paths as needed.
+
    #+BEGIN_SRC sh
-     # Build the db with source commit id.
      SRCDIR=$(pwd)
      DB=$SRCDIR/java-sqlite-$(cd $SRCDIR && git rev-parse --short HEAD).db
 
@@ -11,22 +16,29 @@
      test -d "$DB" && rm -fR "$DB"
      mkdir -p "$DB"
 
-     # Use the correct codeql
+     # Ensure the correct CodeQL version is in your PATH
      export PATH="$(cd ../codeql && pwd):$PATH"
      codeql database create --language=java -s . -j 8 -v $DB --command='./build.sh'
 
-     # Check for AddUser in the db
+     # Check for presence of AddUser.java in the resulting database
      unzip -v $DB/src.zip | grep AddUser
    #+END_SRC
+
    Then add this database directory to your VS Code =DATABASES= tab.
-** Tests using a default query
-   You can run the stdlib query
-   [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]] but will get no results.
-   It does point at classes to inspect -- in particular, the source and sink
-   classes.  Run [[./Illustrations.ql]]; from the command line or vs studio code.
-   Via cli:
+
+** Tests Using a Default Query
+
+   You can run the standard SQL injection query:
+
+   [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]]
+
+   but it will return no results. However, it does help identify which classes are being analyzed as potential sources and sinks. Instead, run the diagnostic query:
+
+   [[./Illustrations.ql]]
+
+   You can run it from the CLI:
+
    #+BEGIN_SRC sh 
-     # run query
      codeql query run                                \
             -v                                       \
             --database java-sqlite-e2e555c.db        \
@@ -35,86 +47,82 @@
             --ram=14000                              \
             Illustrations.ql
 
-     # format results
      codeql bqrs decode --format=text result.bqrs | sed -n '/^Result set: #select/,$p'
    #+END_SRC
-   This shows
+
+   The result will look like:
+
    #+BEGIN_SRC text
      Result set: #select
      |  ui  |  qsi  |
      +------+-------+
      | args | query |
    #+END_SRC
-   In the editor, these link to
-   1. =main(ARGS)= and
-   2. =conn.createStatement().executeUpdate(QUERY);= 
-   The second is correct, but =System.console().readLine();= is not found.
-   Thus, =SqlTainted.ql= will not find anything.
 
-** TODO supplement sources via the model editor
-   - [ ] We have no flow
-     + check source, sink
-     + we have a sink
-     + but ActiveThreatModelSource finds no source
-   - [ ] We can supplement in different ways
-** supplement codeql: Write full manual query: already in workshop
-** TODO supplement codeql: Add to FlowSource or a subclass
+   In the editor, these correspond to:
+   1. =main(String[] args)= — source-like
+   2. =conn.createStatement().executeUpdate(query)= — sink
 
-       Note: this /one area/ that just has to be known.  Browsing source will *not*
-       help you.
+   However, =System.console().readLine()= is not detected as a source. Therefore, =SqlTainted.ql= cannot find a complete flow.
 
-       CodeQL reading hint:
-       : class ActiveThreatModelSource extends DataFlow::Node
-       uses
-       : this.(SourceNode).getThreatModel()
-       So following the cast (SourceNode) may be useful:
-       #+BEGIN_SRC java
-         /**
-          ,* A data flow source.
-          ,*/
-         abstract class SourceNode extends DataFlow::Node 
-       #+END_SRC
-       Following the =abstract class= is promising:
-       #+BEGIN_SRC java
-         abstract class RemoteFlowSource extends SourceNode
-       #+END_SRC
-       and others.
+** Supplement Sources via the Model Editor
 
-       In 
-       [[../ql/java/ql/lib/Customizations.qll]]
-       notice the comments mentioning RemoteFlowSource.
-       Use imports from [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]]
-       but note that there are conflicts.  you will use
-       : private import semmle.code.java.dataflow.FlowSources
-       Follow this to FlowSources, and find the mentioned RemoteFlowSource
-       : abstract class RemoteFlowSource extends SourceNode
+   - [ ] We observe no flow from source to sink
+     - A sink exists (=executeUpdate=)
+     - But no recognized source is found
+   - [ ] There are two ways to fix this:
+     1. Add a new source in =Customizations.qll=
+     2. Add a new source in the models-as-data YAML format
 
-       Add the custom source.  The modified [[../ql/java/ql/lib/Customizations.qll]] is
-       #+BEGIN_SRC java
-         import java
-         private import semmle.code.java.dataflow.FlowSources
+** Supplement CodeQL: Write a Full Manual Query
 
-         class ReadLine extends RemoteFlowSource {
-           ReadLine() {
-             exists(Call read |
-               read.getCallee().getName() = "readLine" and
-               read = this.asExpr()
-             )
-           }
+   A manual dataflow query is already available:
 
-           override string getSourceType() { result = "Console readline" }
-         }
-       #+END_SRC
+   [[./full-query.ql]]
 
-       Note that the predicate
-       #+BEGIN_SRC java
-         module QueryInjectionFlowConfig implements DataFlow::ConfigSig {
-           predicate isSource(DataFlow::Node src) { src instanceof ActiveThreatModelSource }
-               ...;
-         }
-       #+END_SRC
-       now also returns the readLine() result -- although we extended
-       RemoteFlowSource, not ActiveThreatModelSource
+   This can trace the data manually even when standard configuration fails.
+
+** Supplement CodeQL: Add to FlowSource or a Subclass
+
+   Sometimes, the only way to identify how to extend a source is to understand how CodeQL internally resolves source nodes.
+
+   Key class hierarchies:
+   #+BEGIN_SRC java
+     abstract class SourceNode extends DataFlow::Node
+     abstract class RemoteFlowSource extends SourceNode
+   #+END_SRC
+
+   Follow usage in:
+   - [[../ql/java/ql/lib/Customizations.qll]]
+   - [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]]
+
+   Then modify =Customizations.qll= by adding the custom source.  The modified
+   [[../ql/java/ql/lib/Customizations.qll]] is
+   #+BEGIN_SRC java
+     import java
+     private import semmle.code.java.dataflow.FlowSources
+
+     class ReadLine extends RemoteFlowSource {
+       ReadLine() {
+         exists(Call read |
+           read.getCallee().getName() = "readLine" and
+           read = this.asExpr()
+         )
+       }
+
+       override string getSourceType() { result = "Console readline" }
+     }
+    #+END_SRC
+
+   This allows
+
+   #+BEGIN_SRC java
+     predicate isSource(DataFlow::Node src) {
+         src instanceof ActiveThreatModelSource
+     }
+   #+END_SRC
+
+   to include =readLine()= even though we extended =RemoteFlowSource=.
 
 ** TODO supplement codeql: Add to models-as-data
        - schema in codeql: [[../ql/java/ql/lib/semmle/code/java/dataflow/internal/ExternalFlowExtensions.qll]]
@@ -130,7 +138,7 @@
          18:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[1].ArrayElement", "Argument[this]", "taint", "df-generated"]
          19:      - ["java.io", "Console", False, "readLine", "(String,Object[])", "", "Argument[this]", "ReturnValue", "taint", "df-generated"]
        #+END_SRC
-       note: this file is in the generated/ tree.
+       note: this file is in the generated/ tree.  There are others.
 
        The current readline modeling is in the =summaryModel= section; we need it
        in a =sourceModel=
@@ -219,3 +227,6 @@
        #+end_src
 
        Now we can run [[../ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql]] again.
+
+
+
