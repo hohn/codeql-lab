@@ -54,6 +54,11 @@
        Follow this to FlowSources, and find the mentioned RemoteFlowSource
        : abstract class RemoteFlowSource extends SourceNode
 
+       For C, [[../ql/cpp/ql/lib/semmle/code/cpp/security/FlowSources.qll][FlowSources.qll]] has
+         #+BEGIN_SRC text
+           abstract class FlowSource extends DataFlow::Node 
+         #+END_SRC
+
        Add the custom source.  The modified [[../ql/java/ql/lib/Customizations.qll]] is
        #+BEGIN_SRC java
          import java
