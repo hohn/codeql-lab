@@ -1,0 +1,66 @@
+#!/bin/bash
+# Model generator using `xan` for CSV processing
+
+set -euo pipefail
+
+DB="$1"         # CodeQL database path
+LANG="$2"       # Language (e.g. cpp)
+OUTDIR="$3"     # Output directory name under lib/ext/generated/
+CODEQL="$(which codeql)"
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+QUERY_DIR="$REPO_ROOT/$LANG/ql/src/utils/modelgenerator"
+TARGET_ROOT="$REPO_ROOT/$LANG/ql/lib/ext/generated/$OUTDIR"
+TMP_DIR="$(mktemp -d)"
+
+mkdir -p "$TARGET_ROOT"
+
+declare -A QUERIES=(
+    ["CaptureSinkModels.ql"]="isSink"
+    ["CaptureSourceModels.ql"]="isSource"
+    ["CaptureSummaryModels.ql"]="isSummary"
+    ["CaptureNeutralModels.ql"]="isNeutral"
+)
+
+for query in "${!QUERIES[@]}"; do
+    echo "Running $query..."
+    BQRS_FILE="$TMP_DIR/out.bqrs"
+    CSV_FILE="$TMP_DIR/result.csv"
+
+    "$CODEQL" query run "$QUERY_DIR/$query" \
+              --database "$DB" \
+              --output "$BQRS_FILE"
+
+    "$CODEQL" bqrs decode --format=csv --output="$CSV_FILE" "$BQRS_FILE"
+
+    echo "Grouping rows by namespace..."
+
+    xan map '
+    let q = |x| -> if (x == "true" || x == "false") { upper(x) } else { fmt("\"{}\"", x) };
+    fmt("        - [{}]", join(", ", [q(f1), q(f2), q(f3), q(f4)]))
+  ' row "$CSV_FILE" \
+        | xan groupby namespace 'collect(row) as rows' \
+        | xan explode rows \
+        | xan select namespace,row \
+        | xan groupby namespace 'collect(row) as block' \
+        | xan explode block \
+        | while IFS=',' read -r ns row; do
+        safe_ns=$(echo "$ns" | tr '/:' '--' | tr -d '"')
+        out="$TARGET_ROOT/$safe_ns.model.yml"
+        if [[ ! -f "$out" ]]; then
+            cat <<EOF > "$out"
+# THIS FILE IS AN AUTO-GENERATED MODELS AS DATA FILE. DO NOT EDIT.
+extensions:
+  - addsTo:
+      pack: codeql/$LANG-all
+      predicate: ${QUERIES[$query]}
+      rows:
+EOF
+        fi
+        echo "$row" >> "$out"
+    done
+
+    echo "Wrote models to: $TARGET_ROOT/"
+done
+
+rm -rf "$TMP_DIR"
+

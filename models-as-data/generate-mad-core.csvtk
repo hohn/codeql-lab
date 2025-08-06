@@ -1,0 +1,82 @@
+#!/bin/bash
+# generate_mad_csvtk.sh — Full CSVTK-based MAD generator
+
+set -euo pipefail
+
+DB="$1"         # Path to CodeQL DB
+LANG="$2"       # e.g. cpp
+OUTDIR="$3"     # e.g. mylib
+CODEQL="$(which codeql)"
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+QUERY_DIR="$REPO_ROOT/$LANG/ql/src/utils/modelgenerator"
+TARGET_ROOT="$REPO_ROOT/$LANG/ql/lib/ext/generated/$OUTDIR"
+TMP_DIR="$(mktemp -d)"
+
+mkdir -p "$TARGET_ROOT"
+
+declare -A QUERIES=(
+    ["CaptureSinkModels.ql"]="isSink"
+    ["CaptureSourceModels.ql"]="isSource"
+    ["CaptureSummaryModels.ql"]="isSummary"
+    ["CaptureNeutralModels.ql"]="isNeutral"
+)
+
+# Quoting + capitalization logic as an inline function for csvtk
+quote_expr='
+function q(x) {
+  return (x == "true" || x == "false") ? toupper(substr(x, 1, 1)) substr(x, 2) : "\"" x "\""
+}
+[q($1), q($2), q($3), q($4)]
+'
+
+for query in "${!QUERIES[@]}"; do
+    echo "Running $query..."
+    BQRS_FILE="$TMP_DIR/out.bqrs"
+    CSV_FILE="$TMP_DIR/out.csv"
+
+    "$CODEQL" query run "$QUERY_DIR/$query" \
+              --database "$DB" \
+              --output "$BQRS_FILE"
+
+    "$CODEQL" bqrs decode --format=csv --output="$CSV_FILE" "$BQRS_FILE"
+    tail -n +2 "$CSV_FILE" > "$TMP_DIR/noheader.csv"
+
+    # Add header for csvtk compatibility
+    head -n1 "$CSV_FILE" | grep -q ',' || echo "namespace;f1;f2;f3;f4" > "$TMP_DIR/head.csv"
+    cat "$TMP_DIR/head.csv" "$TMP_DIR/noheader.csv" > "$TMP_DIR/input.csv"
+
+    # Mutate quoted fields
+    csvtk mutate -t -n quoted1,quoted2,quoted3,quoted4 -e '
+    if ($f1=="true" || $f1=="false") ucfirst($f1); else "\"" + $f1 + "\""
+  ' -e '
+    if ($f2=="true" || $f2=="false") ucfirst($f2); else "\"" + $f2 + "\""
+  ' -e '
+    if ($f3=="true" || $f3=="false") ucfirst($f3); else "\"" + $f3 + "\""
+  ' -e '
+    if ($f4=="true" || $f4=="false") ucfirst($f4); else "\"" + $f4 + "\""
+  ' "$TMP_DIR/input.csv" > "$TMP_DIR/quoted.csv"
+
+    # Group by namespace
+    csvtk cut -t -f namespace "$TMP_DIR/quoted.csv" | tail -n +2 | sort -u | while read -r ns; do
+        safe_ns=$(echo "$ns" | tr '/:' '--')
+        out="$TARGET_ROOT/$safe_ns.model.yml"
+
+        echo "# THIS FILE IS AN AUTO-GENERATED MODELS AS DATA FILE. DO NOT EDIT." > "$out"
+        echo "extensions:" >> "$out"
+        echo "  - addsTo:" >> "$out"
+        echo "      pack: codeql/$LANG-all" >> "$out"
+        echo "      predicate: ${QUERIES[$query]}" >> "$out"
+        echo "      rows:" >> "$out"
+
+        # Extract all quoted fields for this namespace
+        csvtk grep -t -f namespace -p "$ns" "$TMP_DIR/quoted.csv" |
+            csvtk cut -t -f quoted1,quoted2,quoted3,quoted4 |
+            tail -n +2 | # remove header
+            sed 's/^/        - [/' | sed 's/$/]/' >> "$out"
+
+        echo "Wrote $out"
+    done
+done
+
+rm -rf "$TMP_DIR"
+

@@ -51,7 +51,6 @@
     CodeQL’s query language and type system more intuitive.
     See overview of [[https://en.wikipedia.org/wiki/Functional_programming][functional programming]] for related context.
 
-
 * Repository Layout
 ** Core Structure
    - Repository is based on: https://github.com/github/vscode-codeql-starter.git
@@ -69,15 +68,48 @@
 * Possible Reading Orders
 
 ** Data Flow 
+*** Review: SQLite Injection Workshop, Java
+    We begin with a recap of the Java-based injection example, focusing on the
+    vulnerable code in [[./codeql-sqlite-java/AddUser.java][AddUser.java]]. Following that, we examine a fully manual
+    CodeQL query available in [[./codeql-sqlite-java/full-query.ql][full-query.ql]], which was written to explicitly trace
+    tainted data through the program. Next, we explore the out-of-the-box query
+    [[./ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql][SqlTainted.ql]] included in the standard CodeQL packs, and conclude with an
+    inspection of the relevant base classes and framework modeling in
+    [[./codeql-sqlite-java/Illustrations.ql][Illustrations.ql]].
+
+    - start with SqlTainted.ql, note that it won't find our injection
+
+    - break / comment the pre-done additions in
+      .github/codeql/extensions/sqlite-db/models/sqlite.model.yml
+
 *** Debugging data flow config (instead of taint flow), Java
     We can illustrate taint-flow debugging in the Java SQL injection sample
     - [[./codeql-sqlite-java/TaintFlowDebugging.ql]]
-    - [[./codeql-sqlite-java/TaintFlowDebugging.md]]
+    - following [[./codeql-sqlite-java/TaintFlowDebugging.md]]
 
 *** TODO Debugging data flow config (instead of taint flow), C
     A corresponding example for C is planned, using a simplified query to trace
     value propagation in [[file:~/work-gh/codeql-lab/codeql-dataflow-sql-injection-c/add-user.c]].
     Unlike Java, C may require manual modeling even to visualize basic flows.
+
+    - C detail
+      + Dataflow node types vs. AST vs. CFG, but more choices for the C versions:
+        after call, pointer.
+        - asDefiningArgument(), asExpr(), asIndirectArgument()
+        - asExpr() in C now may cause the path to fail, even though sink and source
+          are found
+    - getAQlClass() to get precise type
+    - ql/actions/ql/src/Debug/partial.ql
+    - ql/cpp/ql/lib/CHANGELOG.md
+      176:* Deleted the deprecated `explorationLimit` predicate from
+      `DataFlow::Configuration`, use `FlowExploration<explorationLimit>` instead.
+    - codeql-sqlite-java/TaintFlowDebugging.md
+      54:int explorationLimit() { result = 100 }
+      58:module MyPartialFlow = MyFlow::FlowExplorationFwd<explorationLimit/0>;
+
+    - Debugging docs:
+      https://codeql.github.com/docs/writing-codeql-queries/debugging-data-flow-queries-using-partial-flow/#debugging-data-flow-queries-using-partial-flow
+
 
 ** Modeling
    There are two primary approaches to modeling: direct use of CodeQL predicates
@@ -95,7 +127,34 @@
    flow annotations from documentation or code examples, then generate valid YAML
    model entries automatically.
 
-   As diagram:
+   - *XX* models-as-data is good for simple but large quantity APIs.  For anything
+     complicated, use CodeQL
+   - The CodeQL parser is optimized for reading large CodeQL files.  E.g., 14,000
+     predicates are no problem.
+   - At this scale, you're generating.  The type checking you get from CodeQL is
+     much more extensive than models-as-data.  models-as-data is text; CodeQL is a
+     type-checked language.
+
+*** TODO MaD (models as data) resources
+
+    https://codeql.github.com/docs/codeql-language-guides/customizing-library-models-for-cpp/
+    https://docs.github.com/en/code-security/codeql-for-vs-code/using-the-advanced-functionality-of-the-codeql-for-vs-code-extension/using-the-codeql-model-editor#testing-codeql-model-packs-in-vs-code
+    https://docs.github.com/en/code-security/codeql-cli/codeql-cli-manual/database-analyze#--model-packsnamerange
+    examples: https://github.com/github/codeql/blob/main/cpp/ql/lib/ext/Windows.model.yml#L8
+
+    documentation for the specific possible values of MaD columns other than the
+    most generic spec can be found here:
+    https://github.com/github/codeql/blob/main/cpp/ql/lib/semmle/code/cpp/dataflow/ExternalFlow.qll#L35
+    This is covered in more detail in
+    - java workshop [[file:codeql-sqlite-java/README.org::*Supplement CodeQL: Add to models-as-data][Supplement CodeQL: Add to models-as-data]] 
+    - c workshop [[file:codeql-dataflow-sql-injection-c/README.org::*supplement codeql: Add to models-as-data][supplement codeql: Add to models-as-data]] 
+    - cpp codeql lib [[file:ql/cpp/ql/lib/semmle/code/cpp/dataflow/internal/ExternalFlowExtensions.qll::This module provides extensible predicates for defining MaD models.]]
+    - java codeql lib [[file:ql/java/ql/lib/semmle/code/java/dataflow/internal/ExternalFlowExtensions.qll::This module provides extensible predicates for defining MaD models.]]
+
+    each language has one of these ExternalFlow lib files and each includes more
+    description on what the potential values actually mean
+
+*** Modeling overview as diagram
    #+BEGIN_SRC text
                                        +----------------------+
                                        |     Modeling in      |
@@ -119,7 +178,7 @@
          +---------v---------+                                       +-----------v-----------+
          | Java: built-in     |                                      | Java: Jedis + Console |
          | includes .qll hook |                                      | GUI modeling examples |
-         +--------------------+                                      +------------------------+
+         +--------------------+                                      +-----------------------+
                    |
                    | Manual setup needed for:
                    v
@@ -142,7 +201,6 @@
      +-------------------------------+
    #+END_SRC
 
-
 *** Review: SQLite Injection Workshop, Java
     We begin with a recap of the Java-based injection example, focusing on the
     vulnerable code in [[./codeql-sqlite-java/AddUser.java][AddUser.java]]. Following that, we examine a fully manual
@@ -152,6 +210,11 @@
     inspection of the relevant base classes and framework modeling in
     [[./codeql-sqlite-java/Illustrations.ql][Illustrations.ql]].
 
+    - start with SqlTainted.ql, note that it won't find our injection
+
+    - break / comment the pre-done additions in
+      .github/codeql/extensions/sqlite-db/models/sqlite.model.yml
+      
 *** Customizations via codeql (Java)
     To customize CodeQL for Java, we identify and extend base classes to add
     custom flow sources and sinks. A general explanation of this approach is
@@ -162,6 +225,44 @@
     languages, with the notable exception of C. Further details on this
     customization process can be found in
     [[./codeql-dataflow-sql-injection-c/incoming.codeql-customizations-workshop.md][incoming.codeql-customizations-workshop.md]].
+
+    - illustrate what source, sink find using QueryInjectionFlowConfig in
+      SqlInjectionQuery.qll
+      - sink ok
+      - no source
+
+    - find the base class of source, so we know what to extend
+
+    - import gotcha
+      I used 
+
+      import semmle.code.java.dataflow.FlowSources as Sources
+
+      class ReadLine extends Sources::RemoteFlowSource {
+
+      Does this work too or is private better?
+
+    - Q: how to run all the CWE* queries against some file?
+
+    - packs at https://github.com/advanced-security/codeql-bundle
+
+     - how to run all the CWE* queries against some file?
+       -- the codeql database analyze command can take several arguments, including a directory or query spec
+       To get the full options, run
+       0:$  codeql database analyze -vvvv -h
+       Usage: codeql database analyze [OPTIONS] -- <database> [<query|dir|suite|pack>...]
+       Analyze a database, producing meaningful results in the context of the source code.
+
+       Run a query suite (or some individual queries) against a CodeQL database, producing results, styled as
+       alerts or paths, in SARIF or another interpreted format.
+
+       This command combines the effect of the codeql database run-queries and codeql database interpret-result
+
+     - How do you install/include the CodeQL bundles with the modified Customizations.qll?
+
+       That part we have not deciphered in detail.  the CLI tool at
+       https://github.com/advanced-security/codeql-bundle does this -- but it's a
+       black box
 
 *** Customizations via Model Editor: Jedis Example (Java Redis client)
     The Jedis example is a straightforward case with no unexpected
@@ -196,6 +297,19 @@
     and predicates -- can be identified by inspecting representative queries like
     [[./ql/java/ql/src/Security/CWE/CWE-089/SqlTainted.ql][SqlTainted.ql]].
 
+    - find existing readline modling
+      #+BEGIN_SRC text
+        hohn@ghm3 ~/work-gh/codeql-lab
+        0:$ rg -il 'readline' ql/java --type=yaml
+        ql/java/ql/lib/ext/com.google.common.io.model.yml
+        ql/java/ql/lib/ext/org.apache.cxf.helpers.model.yml
+        ql/java/ql/lib/ext/java.io.model.yml
+        ql/java/ql/lib/ext/generated/java.io.model.yml
+        ql/java/ql/lib/ext/generated/kotlinstdlib.model.yml
+        ql/java/ql/lib/ext/generated/jenkins.model.yml
+        ql/java/ql/lib/ext/generated/org.apache.commons.io.model.yml
+        ql/java/ql/lib/ext/experimental/com.google.common.io.model.yml
+      #+END_SRC
 
 *** Review: SQLite Injection Workshop (C)
     This is the C version of the injection workshop, based on
@@ -270,6 +384,16 @@
     in:
     [[./codeql-dataflow-sql-injection-c/README.org]]
        
+    - same workflow as Java: extend RemoteFlowSource, do it in Customizations.qll
+      to affect all queries.
+    - model pack existence has to be explicitly specified
+    - Options to control the model packs to be used
+      #+BEGIN_SRC text
+        --model-packs=<name@range>...
+        A list of CodeQL pack names, each with an optional version range, to be used as model packs to customize the queries that are about to be evaluated.
+      #+END_SRC
+
+
 ** TODO CodeQL Bundling
    This section will provide a detailed walkthrough of the CodeQL bundling process
    using the CLI tool at https://github.com/advanced-security/codeql-bundle. This
@@ -281,6 +405,119 @@
    from source. Notes and scripts will be collected in
    [[file:codeql-bundling/README.org::XX: continue]].
 
+   CodeQL bundle info:
+   - original bundles found at:
+     https://github.com/github/codeql-action/releases/tag/codeql-bundle-v2.22.2
+   - custom bundler found:
+     https://github.com/advanced-security/codeql-bundle?tab=readme-ov-file#codeql-customization-packs
+
+   - use a Customizations.qll pack
+     (https://github.com/advanced-security/codeql-bundle?tab=readme-ov-file#codeql-customization-packs
+     these do get created as a separate pack from the rest of the lib)
+
+   - This part of the custom bundle tool documentation
+     (https://github.com/advanced-security/codeql-bundle/blob/main/codeql_bundle/helpers/bundle.py#L329)
+     explains how the tool reverses dependencies: the built-in libraries are
+     modified to depend on the custom library. The custom bundle must include a
+     file named Customizations (a convention enforced by the bundler), but it can
+     also contain additional libraries with arbitrary names.
+
+   - Generating CodeQL Models for API Endpoints
+
+     To support automatic generation of API endpoint models in a CodeQL workshop
+     (without using the model editor), you can leverage the existing
+     infrastructure used in the =cpp/ql/lib/ext/generated= directory of the CodeQL
+     repo:
+
+     - File Generation ::
+       Individual model files are generated using the following script:  
+       https://github.com/github/codeql/blob/main/misc/scripts/models-as-data/generate_mad.py
+
+     - Bulk Generation :: 
+       For batch processing, use:  
+       https://github.com/github/codeql/blob/main/misc/scripts/models-as-data/bulk_generate_mad.py
+
+       This script requires:
+       - A language-specific YAML config file — for C++:  
+         https://github.com/github/codeql/blob/main/cpp/bulk_generation_targets.yml
+       - A DCA run (Data-Collection Analysis) to provide the necessary input data.
+
+     These tools allow you to programmatically produce model files similar to
+     those found in =ql/lib/ext/generated=, making them suitable for automated or
+     instructional use cases.
+   
+   - Updated MAD Generator (no more DCA step)
+
+     The script `generate_mad.py` replaces the older DCA-based workflow. It runs a set of
+     language-specific CodeQL queries directly against a database and emits `.model.yml` files.
+  
+     - Queries used:
+       - CaptureSummaryModels.ql
+       - CaptureSinkModels.ql
+       - CaptureSourceModels.ql
+       - CaptureNeutralModels.ql
+       - CaptureTypeBasedSummaryModels.ql (optional)
+  
+     - These queries are located in:
+       <language>/ql/src/utils/modelgenerator/
+  
+     - Output files are written to:
+       <language>/ql/lib/ext/generated/<folder>/*.model.yml
+  
+     - Example usage:
+       #+BEGIN_SRC sh
+         python3 generate_mad.py --language cpp /path/to/db --with-sinks --with-sources --with-summaries
+       #+END_SRC
+  
+     There is no longer any need for intermediate `.dca.json` files or a "DCA run".
+
+     A compact shell script illustrating the steps is in
+     [[./models-as-data/generate-mad-core]]
+
+   - [ ] A compact shell/csvtk script illustrating the steps is in
+     [[./models-as-data/generate-mad-core.csvtk]]
+     brew install csvtk
+
+   - [ ] A compact shell/[[https://github.com/medialab/xan?tab=readme-ov-file#quick-tour][xan]] script illustrating the steps is in
+     [[./models-as-data/generate-mad-core.xan]]
+     brew install xan
+
+     https://github.com/github/codeql/tree/main/misc/scripts/models-as-data
+
+   - [ ] bundling semantics
+     good
+     - pack a_1
+       - depends b_1
+       - depends b_2
+         - depends java-all
+
+     good
+     - pack a_1
+       - depends b_1
+       - depends b_2
+         - depends java-all
+           - depends my-custom
+
+     cycle, actual current situation.  OK for libraries, not packs?
+     Is this import hierarchy
+     - pack a_1
+       - depends b_1
+       - depends b_2
+         - depends java-all
+           - depends my-custom
+             - depends java-all
+
+     turned into?
+     - pack a_1
+       - depends b_1
+       - depends b_2
+         - depends java-all-custom precompiled
+
+     The fundamental distinction:  Customizations.qll can *insert under* the stdlib.
+     Other packs are *on top of* the stdlib.
+ 
+     There is a transient dependency inserted.  See
+     codeql-bundle/codeql_bundle/helpers/bundle.py
 * Tool Setup
   Some scripts are used here, found in [[./bin/]].  To ensure the ones written in
   Python have access to prerequites, set up a virtual environment via 

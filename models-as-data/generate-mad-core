@@ -1,0 +1,78 @@
+#!/bin/bash
+# generate_mad_core.sh
+# Minimal MAD generator for a given CodeQL database and language
+
+set -euo pipefail
+
+# --- Config ---
+DB="$1"                          # Path to CodeQL database
+LANG="$2"                        # Language, e.g., cpp, java
+OUT_DIR="$3"                     # Output directory, relative to repo root
+CODEQL="$(which codeql)"         # CodeQL CLI
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+QUERY_DIR="$REPO_ROOT/$LANG/ql/src/utils/modelgenerator"
+TMP_DIR="$(mktemp -d)"
+BQRS_FILE="$TMP_DIR/out.bqrs"
+
+# Map query name to predicate name
+declare -A QUERIES=(
+    ["CaptureSinkModels.ql"]="isSink"
+    ["CaptureSourceModels.ql"]="isSource"
+    ["CaptureSummaryModels.ql"]="isSummary"
+    ["CaptureNeutralModels.ql"]="isNeutral"
+)
+
+# Minimal YAML output template
+write_yaml() {
+    local ns="$1"
+    local pred="$2"
+    local body="$3"
+    local sanitized="${ns//[\/:]/-}"
+    mkdir -p "$REPO_ROOT/$LANG/ql/lib/ext/generated/$OUT_DIR"
+    cat <<EOF > "$REPO_ROOT/$LANG/ql/lib/ext/generated/$OUT_DIR/${sanitized}.model.yml"
+# THIS FILE IS AN AUTO-GENERATED MODELS AS DATA FILE. DO NOT EDIT.
+extensions:
+  - addsTo:
+      pack: codeql/${LANG}-all
+      predicate: $pred
+      rows:
+$body
+EOF
+    echo "Wrote: $REPO_ROOT/$LANG/ql/lib/ext/generated/$OUT_DIR/${sanitized}.model.yml"
+}
+
+# Run queries and convert output to addsTo rows
+for query in "${!QUERIES[@]}"; do
+    echo "Running $query..."
+    "$CODEQL" query run \
+              "$QUERY_DIR/$query" \
+              --database "$DB" \
+              --output "$BQRS_FILE"
+
+    # Extract result rows as text (CSV-like)
+    RAW_ROWS=$("$CODEQL" bqrs decode --format=csv --output=- "$BQRS_FILE" | tail -n +2)
+
+    # Group by namespace, format for YAML
+    declare -A ROWS=()
+    while IFS= read -r line; do
+        IFS=';' read -ra FIELDS <<< "$line"
+        ns="${FIELDS[0]}"
+        quoted=()
+        for f in "${FIELDS[@]}"; do
+            if [[ "$f" != "true" && "$f" != "false" ]]; then
+                quoted+=("\"$f\"")
+            else
+                cap="${f^}"  # capitalize
+                quoted+=("$cap")
+            fi
+        done
+        ROWS["$ns"]+=$'\n'"      - [${quoted[*]}]"
+    done <<< "$RAW_ROWS"
+
+    for ns in "${!ROWS[@]}"; do
+        write_yaml "$ns" "${QUERIES[$query]}" "${ROWS[$ns]}"
+    done
+done
+
+rm -rf "$TMP_DIR"
