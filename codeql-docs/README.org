@@ -1,18 +1,154 @@
 * TODO Direct Conversion RST -> Prompt by GPT
+  These are files intended for use as part of a GPT prompt, to assist GPTs in
+  writing CodeQL.
+
 ** For Go
-  + [[../ql/docs/codeql/codeql-language-guides/abstract-syntax-tree-classes-for-working-with-go-programs.rst]]
-    - ./abstract-syntax-tree-classes-for-working-with-go-programs.gpt
-  + [[../ql/docs/codeql/codeql-language-guides/analyzing-data-flow-in-go.rst]]
-    - ./analyzing-data-flow-in-go.gpt
-  + [[../ql/docs/codeql/codeql-language-guides/basic-query-for-go-code.rst]]
-    - ./basic-query-for-go-code.gpt
-  + [[../ql/docs/codeql/codeql-language-guides/codeql-for-go.rst]]
-    - ./codeql-for-go.gpt
-  + [[../ql/docs/codeql/codeql-language-guides/codeql-library-for-go.rst]]
-    - ./codeql-library-for-go.gpt
-  + [[../ql/docs/codeql/codeql-language-guides/customizing-library-models-for-go.rst]]
-    - ./customizing-library-models-for-go.gpt
-    
+   + [[../ql/docs/codeql/codeql-language-guides/abstract-syntax-tree-classes-for-working-with-go-programs.rst]]
+     - ./abstract-syntax-tree-classes-for-working-with-go-programs.gpt
+   + [[../ql/docs/codeql/codeql-language-guides/analyzing-data-flow-in-go.rst]]
+     - ./analyzing-data-flow-in-go.gpt
+   + [[../ql/docs/codeql/codeql-language-guides/basic-query-for-go-code.rst]]
+     - ./basic-query-for-go-code.gpt
+   + [[../ql/docs/codeql/codeql-language-guides/codeql-for-go.rst]]
+     - ./codeql-for-go.gpt
+   + [[../ql/docs/codeql/codeql-language-guides/codeql-library-for-go.rst]]
+     - ./codeql-library-for-go.gpt
+   + [[../ql/docs/codeql/codeql-language-guides/customizing-library-models-for-go.rst]]
+     - ./customizing-library-models-for-go.gpt
+
+
+** Go Sample Prompt for Query Writing Assistance
+   1. Summarize the taint flow problem in code security.  Use math and formal
+      paper notation.
+
+   2. Now examine the file codeql-dataflow-sql-injection-go/add-user.go and list
+      the functions that may be sources Src and the functions that may be sinks
+      Snk.  Tabulate each. 
+
+      output:
+      #+BEGIN_SRC text
+        Sources (Src)
+
+        - getUserInfo() @ add-user.go:18–24: Reads from stdin via bufio.NewReader(...).ReadString and returns
+        user-controlled input (tainted).
+
+        Sinks (Snk)
+
+        - writeInfo(id int, info string) @ add-user.go:30–43: Builds SQL dynamically with fmt.Sprintf(..., info)
+        and executes it; tainted info flows into SQL.
+        - exec.Command("sqlite3", "users.sqlite", query) @ add-user.go:36: External sink invoked inside
+        writeInfo; the 3rd argument (query) is the SQL text influenced by tainted input, and cmd.Run() executes
+        it.
+      #+END_SRC
+
+   3. You picked up the source
+      - Reads from stdin via
+        bufio.NewReader(...).ReadString and returns user-controlled input
+        (tainted).
+      and the sink
+      - exec.Command("sqlite3", "users.sqlite", query) @ add-user.go:36: External
+        sink invoked inside writeInfo; the 3rd argument (query) is the SQL text
+        influenced by tainted input, and cmd.Run() executes it.
+
+      The goal now:
+      1. write a codeql predicate to identify the source -- the return value of
+         you mention
+
+      2. write a codeql predicate to identify the sink -- the 3rd argument you
+         identified. 
+
+      For both queries, use the codeql AST matching functionality.
+
+      To assist you with codeql, the files 
+      - codeql-docs/abstract-syntax-tree-classes-for-working-with-go-programs.gpt
+      - codeql-docs/analyzing-data-flow-in-go.gpt
+      - codeql-docs/basic-query-for-go-code.gpt
+      - codeql-docs/codeql-for-go.gpt
+      - codeql-docs/codeql-library-for-go.gpt
+      - codeql-docs/customizing-library-models-for-go.gpt
+      contain information for writing CodeQL queries for Go.
+
+      output:
+      #+BEGIN_SRC text
+        Source Predicate
+
+        - File: codeql/codeql-dataflow-sql-injection-go/SourceGetUserInfo.ql
+        - Purpose: Match the return expression of getUserInfo().
+
+        Purpose: Match the return expression of getUserInfo().
+
+        Predicate:
+            - Name: isSource(Expr e)
+            - Logic: Finds any ReturnStmt inside the function named getUserInfo and binds its returned
+        expression(s).
+
+        Contents:
+            - import go
+            - define predicate isSource(Expr e)
+            - select the matched expression
+
+        Sink Predicate
+
+        - File: codeql/codeql-dataflow-sql-injection-go/SinkExecCommandThirdArg.ql
+        - Purpose: Match the 3rd argument (index 2) to exec.Command(...).
+
+        Purpose: Match the 3rd argument (index 2) to exec.Command(...).
+
+        Predicate:
+            - Name: isSink(Expr e)
+            - Logic: Resolves the call target to function Command in package exec and binds c.getArgument(2).
+
+        Contents:
+            - import go
+            - define predicate isSink(Expr e)
+            - select the matched expression
+
+        Notes
+
+        - These use idiomatic matching via Function, ReturnStmt, and Call with getTarget()/getArgument(i).
+        If you prefer strict syntactic matching for the sink (no resolution), we can switch to matching a
+        SelectorExpr callee with base identifier exec and selector Command.
+
+
+      #+END_SRC
+
+   4. Add a qlpack.yml file to the go repo
+
+      output:
+      #+BEGIN_SRC text
+        Added a CodeQL pack manifest for the Go repo.
+
+        - File: codeql/codeql-dataflow-sql-injection-go/qlpack.yml
+        - Contents:
+            - name: hohnlab/codeql-dataflow-sql-injection-go
+            - version: 0.0.1
+            - extractor: go
+            - dependencies: codeql/go: "*"
+            - queries:
+            - SourceGetUserInfo.ql
+            - SinkExecCommandThirdArg.ql
+
+        This lets you run the two queries as a query pack from the repo root. Run with:
+
+        - cd codeql/codeql-dataflow-sql-injection-go
+        - codeql pack install
+        - codeql database analyze  . --format=sarif -o results.sarif
+
+      #+END_SRC
+
+   5. Add a README.org with
+      - short intro
+      - codeql db build instructions
+      - codeql query run instructions
+
+      output:
+      [[../../codeql-dataflow-sql-injection-go/README.org]]
+
+   6. 
+
+   7. 
+      
+
 ** For Python
 
 ** For C/C++   
