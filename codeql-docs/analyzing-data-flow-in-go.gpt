@@ -1,0 +1,50 @@
+Purpose
+- Use CodeQL’s Go data-flow libraries to find how values and taint propagate.
+- Cover local flow/taint (intra-procedural) and global flow/taint (inter-procedural), with configurable sources/sinks/barriers.
+
+Local Data Flow (DataFlow)
+- Node hierarchy: Node (ExprNode, ParameterNode, InstructionNode). Map to/from AST/IR via asExpr/asParameter/asInstruction and exprNode/parameterNode/instructionNode.
+- localFlowStep(a,b): immediate edge; localFlow(a,b) is transitive closure (localFlowStep*).
+- Example: find all expressions that flow to call arg 0 of os.Open:
+  import go
+  from Function osOpen, CallExpr call, Expr src
+  where osOpen.hasQualifiedName("os","Open") and call.getTarget() = osOpen and
+        DataFlow::localFlow(DataFlow::exprNode(src), DataFlow::exprNode(call.getArgument(0)))
+  select src
+
+Local Taint (TaintTracking)
+- localTaintStep / localTaint analogous to DataFlow but includes non-value-preserving steps (e.g., concatenation).
+- Example: parameter → sink taint check with TaintTracking::localTaint.
+
+Global Data Flow (DataFlow::Global)
+- Implement DataFlow::ConfigSig:
+  - isSource(Node): where flow originates.
+  - isSink(Node): where flow ends.
+  - isBarrier(Node) [optional]: blocks flow.
+  - isAdditionalFlowStep(a,b) [optional]: add extra edges.
+- Apply module: module MyFlow = DataFlow::Global<MyConfig>.
+- Query via MyFlow::flow(source, sink).
+
+Global Taint (TaintTracking::Global)
+- Same signature as Global data flow; includes taint-style non-value-preserving steps.
+- Good for security queries (untrusted → sink).
+
+Predefined Sources
+- RemoteFlowSource: user-controllable inputs; use as source for security findings.
+
+Idioms
+- Targeted call/arg sink: define isSink by matching call.getTarget() and sink.asExpr() = call.getArgument(i).
+- Literal-only filter: require source.asExpr() instanceof StringLit (or other BasicLit subclass).
+- Env source example: class GetenvSource extends CallExpr where getTarget().hasQualifiedName("os","Getenv").
+- Compose flows: define MyFlow for literal→url.Parse, or taint from getenv→url.Parse using ConfigSig and Global.
+
+Exercises (patterns to emulate)
+- Hard-coded strings → url.Parse (local/global).
+- Sources from os.Getenv.
+- Full path query from getenv to url.Parse.
+
+Tips
+- Prefer DataFlow/TaintTracking APIs over string matching; use .asExpr() to recover expressions when defined.
+- Be explicit about package-qualified targets with hasQualifiedName.
+- For better perf/precision, start with localFlow/localTaint and expand to Global only when needed.
+- Use select source, "... $@", sink to show path endpoints in results; add path explanation with path queries (outside this scope).

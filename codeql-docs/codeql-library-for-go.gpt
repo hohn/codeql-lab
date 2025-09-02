@@ -1,0 +1,37 @@
+Purpose
+- Quick reference to the Go standard library for CodeQL queries.
+
+Views
+- AST (syntactic): statements/expressions, names, declarations.
+- CFG/IR: control flow, instructions (rarely used directly by queries).
+- DFG (data-flow): value and taint propagation, call/callee mapping.
+
+AST Essentials
+- AstNode: getChild(i), getAChild(), getParent() for generic traversal (avoid index reliance).
+- Statements: IfStmt, ForStmt, RangeStmt, SwitchStmt/ExpressionSwitchStmt, TypeSwitchStmt, SelectStmt, CaseClause, CommClause, BlockStmt, DeclStmt, Assign variants, Inc/Dec, GoStmt, DeferStmt, Labeled/Break/Continue/Goto/Fallthrough.
+- Expressions: Ident, SelectorExpr (base/selector), BasicLit (IntLit/FloatLit/ImagLit/RuneLit/StringLit), FuncLit, CompositeLit (getKey/getValue), ParenExpr, IndexExpr, SliceExpr, ConversionExpr, TypeAssertExpr, CallExpr (getCalleeExpr/getArg), StarExpr, TypeExpr, OperatorExpr → UnaryExpr/BinaryExpr (ComparisonExpr with EqualityTestExpr/RelationalComparisonExpr).
+- Statement accessors: per-class getters (getCondition, getThen, getElse, getInit, getPost, getExpr(i), getStmt(i), getComm(), etc.).
+
+Names/Entities/Types
+- Name hierarchy: SimpleName vs QualifiedName; namespaces: PackageName, TypeName, ValueName, LabelName; ValueName → ConstantName, VariableName, FunctionName.
+- ReferenceExpr: lvalue/rvalue; ValueExpr: expressions with values.
+- Entity: PackageEntity, TypeEntity, ValueEntity (Constant/Variable/Function), Label; hasQualifiedName, getDeclaration, getAReference.
+- Variable subclasses: LocalVariable, ReceiverVariable, Parameter, ResultVariable; Field with hasQualifiedName(pkg,type,field).
+- Function/Method: FuncDef unifies FuncDecl/FuncLit; getBody, getName, getParameter(i), getResultVar(i), getACall. Method.hasQualifiedName(pkg,type,method); implements(m2).
+
+Data Flow Graph (DFG)
+- DataFlow::Node ↔ optional AST via asExpr (use cautiously). getType(), getNumericValue/getStringValue/getExactValue for constants.
+- Nodes: CallNode (getArgument(i), getResult(i), getTarget(), getACallee()), ParameterNode (asParameter), BinaryOperationNode (covers x+1, x+=1, x++), UnaryOperationNode; PointerDereferenceNode, AddressOperationNode, RelationalComparisonNode, EqualityTestNode.
+- Read/Write: readsVariable/Field/Element, writesVariable/Field/Element.
+
+Call Graph
+- getTarget(): declared (may be interface method). getACallee(): all possible dynamic callees.
+
+Global Flow/Taint (overview)
+- Define ConfigSig with isSource/isSink/[isBarrier]; apply DataFlow::Global<..> or TaintTracking::Global<..>.
+
+Advanced
+- Basic blocks/dominance for CFG-based reasoning (rare for standard queries).
+
+Guidance
+- Prefer AST for structure, DFG for semantics. Use qualified names. Rely on library types/predicates over string parsing. Start local, move to global only as needed.

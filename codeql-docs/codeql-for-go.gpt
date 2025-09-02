@@ -1,0 +1,21 @@
+Purpose
+- Orientation page for Go query authors; links and core concepts.
+
+What to Learn (roadmap)
+- Basic query for Go code: variables, predicates, SELECT formatting.
+- CodeQL library for Go: AST, entities/names, types, DFG/CFG, calls.
+- AST classes for Go: concrete syntax → CodeQL classes mapping and accessors.
+- Analyzing data flow in Go: local/global flow and taint.
+- Customizing library models for Go: data extensions (sources/sinks/summaries) and model packs.
+
+Core Import
+- Use "import go" to bring the standard Go library (go.qll and friends).
+
+Best Practices
+- Start syntactic (AST) for structure; switch to DFG for semantic flow.
+- Use hasQualifiedName for stable matching of stdlib/framework APIs.
+- Prefer library predicates over string parsing; rely on classes and accessors.
+- Keep queries specific and cheap first; generalize after validation.
+
+Next Steps
+- Follow each linked topic for details and examples. Combine AST selections with DataFlow/TaintTracking when moving from structure to behavior.

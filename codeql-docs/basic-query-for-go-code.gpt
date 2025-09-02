@@ -1,0 +1,36 @@
+Purpose
+- Minimal Go query in VS Code; variables, constraints, and results for a concrete bug pattern.
+
+Target Pattern
+- Methods defined on value receivers that write to a field have no effect (receiver is copied).
+- Safer alternative: method should use a pointer receiver.
+
+Query
+  import go
+  from Method m, Variable recv, Write w, Field f
+  where recv = m.getReceiver() and
+        w.writesField(recv.getARead(), f, _) and
+        not recv.getType() instanceof PointerType
+  select w, "This update to " + f + " has no effect, because " + recv + " is not a pointer."
+
+Structure (analogy to SQL)
+- import: include standard Go library (import go).
+- from: declare typed variables to range over (Method, Variable, Write, Field).
+- where: constrain relationships among variables with predicates.
+- select: emit results; message can concatenate strings and AST entities.
+
+Key Predicates/Classes
+- Method.getReceiver(): receiver variable of a method.
+- Write.writesField(baseRead, field, idx): a write whose LHS writes field of a base expression.
+- Variable.getARead(): a read expression of the variable (used to match Write receiver base).
+- PointerType: type test to exclude pointer receivers.
+
+Usage Hints
+- Use hasQualifiedName(pkg, name) to narrow functions/methods by package.
+- Start with quick query in the VS Code CodeQL extension; paste query under "import go".
+- Click results to jump to the write site; refine constraints if needed.
+
+Extensions
+- Add a guard to exclude writes to fields of temporary copies (e.g., values returned from functions).
+- Restrict to exported methods/types, or to specific packages.
+- Convert to a path query to show flows leading to the write (optional).

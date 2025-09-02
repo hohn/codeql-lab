@@ -1,0 +1,19 @@
+* TODO Direct Conversion RST -> Prompt by GPT
+** For Go
+  + [[../ql/docs/codeql/codeql-language-guides/abstract-syntax-tree-classes-for-working-with-go-programs.rst]]
+    - ./abstract-syntax-tree-classes-for-working-with-go-programs.gpt
+  + [[../ql/docs/codeql/codeql-language-guides/analyzing-data-flow-in-go.rst]]
+    - ./analyzing-data-flow-in-go.gpt
+  + [[../ql/docs/codeql/codeql-language-guides/basic-query-for-go-code.rst]]
+    - ./basic-query-for-go-code.gpt
+  + [[../ql/docs/codeql/codeql-language-guides/codeql-for-go.rst]]
+    - ./codeql-for-go.gpt
+  + [[../ql/docs/codeql/codeql-language-guides/codeql-library-for-go.rst]]
+    - ./codeql-library-for-go.gpt
+  + [[../ql/docs/codeql/codeql-language-guides/customizing-library-models-for-go.rst]]
+    - ./customizing-library-models-for-go.gpt
+    
+** For Python
+
+** For C/C++   
+

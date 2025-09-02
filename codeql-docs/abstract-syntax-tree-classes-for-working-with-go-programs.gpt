@@ -1,0 +1,90 @@
+Purpose
+- Write CodeQL queries over Go by navigating the Go AST classes.
+- Model: Syntax → CodeQL class hierarchy; use predicates to access parts (condition, body, operands).
+- Pattern: get<Part>(), getA<Part>(), get<Left/Right>Operand>(), getAnArgument(), getCallee().
+
+Core Namespaces
+- Statements: subclasses of Stmt.
+- Expressions: subclasses of Expr (literals, unary, binary, calls, selectors, etc.).
+- Declarations: FuncDecl, GenDecl (+ ImportSpec, TypeSpec, ValueSpec).
+- Types: TypeExpr nodes (ArrayTypeExpr, StructTypeExpr, FuncTypeExpr, InterfaceTypeExpr, MapTypeExpr, ChanTypeExpr variants).
+- Names/Selectors: SimpleName, SelectorExpr; Name hierarchy: PackageName, TypeName, ValueName, LabelName.
+
+Statements (Stmt)
+- EmptyStmt “;”; ExprStmt expression-as-stmt; BlockStmt “{…}”.
+- IfStmt: if cond then [else]; supports init; Then/Else are blocks or statements.
+- ForStmt: classic init/cond/post; LoopStmt superclass. RangeStmt: “for k,v := range expr { … }”.
+- SwitchStmt/ExpressionSwitchStmt; TypeSwitchStmt; CaseClause inside switch.
+- SelectStmt with CommClause; SendStmt “ch <- x”; RecvStmt “x = <-ch”.
+- DeclStmt; Assignment family: SimpleAssignStmt (=), DefineStmt (:=), CompoundAssignStmt (+, -, *, /, %, &, |, ^, <<, >>, &^).
+- IncStmt x++, DecStmt x--. GoStmt “go f()”; DeferStmt “defer f()”. LabeledStmt, BreakStmt, ContinueStmt, GotoStmt, FallthroughStmt, BadStmt.
+
+Expressions (Expr)
+Literals
+- BasicLit subclasses: IntLit, FloatLit, ImagLit, CharLit/RuneLit, StringLit.
+- CompositeLit: StructLit (T{…}), MapLit (map[K]V{…}).
+- FuncLit: function literal (FuncDef).
+
+UnaryExpr (UnaryExpr)
+- PlusExpr “+x”, MinusExpr “-x”, NotExpr “!x”, ComplementExpr “^x”, AddressExpr “&x”, RecvExpr “<-x”.
+
+BinaryExpr (BinaryExpr)
+- Arithmetic: MulExpr, QuoExpr, RemExpr, AddExpr, SubExpr.
+- Shift: ShlExpr “<<”, ShrExpr “>>”.
+- Logical: LandExpr “&&”, LorExpr “||”.
+- Relational: LssExpr “<”, GtrExpr “>”, LeqExpr “<=”, GeqExpr “>=”.
+- Equality: EqlExpr “==”, NeqExpr “!=”.
+- Bitwise: AndExpr “&”, OrExpr “|”, XorExpr “^”, AndNotExpr “&^”.
+
+Type expressions (no common superclass)
+- ArrayTypeExpr “[N]T”/“[]T”; StructTypeExpr “struct{…}”; FuncTypeExpr “func(…) …”.
+- InterfaceTypeExpr; MapTypeExpr; ChanTypeExpr variants: SendChanTypeExpr, RecvChanTypeExpr, SendRecvChanTypeExpr.
+
+Name/Selector/Call
+- Name subclasses: SimpleName, QualifiedName; ValueName → ConstantName, VariableName, FunctionName.
+- SelectorExpr “X.Y” for pkg qualifiers and field/method access.
+- CallExpr: getCallee(), getAnArgument(); method calls often SelectorExpr as callee.
+- IndexExpr “a[i]”; SliceExpr “a[i:j:k]”; KeyValueExpr in CompositeLit.
+- ParenExpr; StarExpr pointer deref/type; TypeAssertExpr “x.(T)”; Conversion “T(x)”.
+
+Declarations
+- FuncDecl/FuncLit via FuncDef: getBody(), getName(), getParameter(i), getResultVar(i), getACall().
+- GenDecl with ImportSpec/TypeSpec/ValueSpec; Field/FieldList for params, results, struct/interface fields.
+
+Concurrency
+- SelectStmt with CommClause; SendStmt; RecvExpr/RecvStmt; GoStmt; DeferStmt.
+
+Navigation Idioms
+- If: getCondition(), getThen(), getElse(); For/Range: inspect init/cond/post or range expr.
+- Calls: from CallExpr c, SelectorExpr s | c.getCallee() = s and s.getMemberName() = "Foo".
+- Method vs function: SelectorExpr callee vs SimpleName callee.
+- Switch/TypeSwitch: use CaseClause, getExpr(i)/getStmt(i); Select: CommClause.
+- Assign: match AssignStmt subclasses; short var define is DefineStmt.
+- Binary/Unary: use specific subclasses or operator accessors.
+- Literals: filter BasicLit subclasses; CompositeLit elements via keys/values.
+
+Selection Patterns (QL sketches)
+- Method calls by name:
+  from CallExpr call, SelectorExpr sel
+  where call.getCallee() = sel and sel.getMemberName() = "Close"
+  select call
+- Range over map/slice:
+  from RangeStmt r select r
+- Short var with channel receive:
+  from RecvStmt rs select rs
+- Struct literal of type Point:
+  from StructLit lit where lit.getType().getName() = "Point" select lit
+- Defer call:
+  from DeferStmt d, CallExpr c where d.getExpr() = c select d, c
+
+Tips
+- Prefer class tests over string parsing. Disambiguate type conversions (CallExpr callee is a TypeExpr).
+- Inc/Dec are statements, not expressions. Handle ":=" vs "=" separately. Exclude BadStmt/BadExpr.
+
+Cheatsheet (syntax → class)
+- If: IfStmt; For: ForStmt; Range: RangeStmt; Switch: SwitchStmt/ExpressionSwitchStmt; Type switch: TypeSwitchStmt; Select: SelectStmt; Case: CaseClause; Select case: CommClause.
+- Assign: SimpleAssignStmt (=), DefineStmt (:=), CompoundAssignStmt; Inc/Dec: IncStmt, DecStmt.
+- Call: CallExpr; Selector: SelectorExpr; Index/Slice: IndexExpr/SliceExpr; Type assert: TypeAssertExpr; Unary/Binary: UnaryExpr/BinaryExpr subtypes.
+- Literals: IntLit, FloatLit, ImagLit, CharLit/RuneLit, StringLit, StructLit, MapLit, FuncLit.
+- Types: ArrayTypeExpr, StructTypeExpr, FuncTypeExpr, InterfaceTypeExpr, MapTypeExpr, ChanTypeExpr.
+- Names/Entities: Name, ValueName, FunctionName; FuncDef, FuncDecl, FuncLit.

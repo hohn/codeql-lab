@@ -1,0 +1,44 @@
+Purpose
+- Customize data-flow/taint analysis for Go by modeling frameworks/libraries via data extensions (YAML) and model packs.
+
+Data Extensions (YAML)
+- Structure:
+  extensions:
+    - addsTo:
+        pack: codeql/go-all
+        extensible: <extensible-predicate>
+      data:
+        - <tuple1>
+        - <tuple2>
+- Union semantics across files: rows are combined; duplicates removed.
+
+Extensible Predicates (Go)
+- sourceModel(package, type, subtypes, name, signature, ext, output, kind, provenance)
+  - Define sources (e.g., user input). kind maps to threat model; provenance tags origin (manual/ai-manual/etc.).
+- sinkModel(package, type, subtypes, name, signature, ext, input, kind, provenance)
+  - Define sinks (dangerous use).
+- summaryModel(package, type, subtypes, name, signature, ext, input, output, kind, provenance)
+  - Define through-flow when dependency code isn’t in repo.
+- neutralModel(package, type, name, signature, kind, provenance)
+  - Low-impact flows (weaker than summaries) to reduce over-taint/noise.
+
+Access Paths (examples)
+- Argument[i], Argument[i].ArrayElement, ReturnValue, ReturnValue.ArrayElement, Receiver, Qualifier, Field["name"], Field[<index>].
+- kind: "value" moves whole values; "taint" propagates taint only.
+
+Examples
+- slices.Max: elements of arg[0] → ReturnValue.
+  - ["slices","",False,"Max","","","Argument[0].ArrayElement","ReturnValue","value","manual"]
+- slices.Concat: elements of all args → elements of ReturnValue.
+  - ["slices","",False,"Concat","","","Argument[0].ArrayElement.ArrayElement","ReturnValue.ArrayElement","value","manual"]
+- Threat models: use kind/provenance and pack wiring to include/exclude sets of sources.
+
+Model Packs
+- Group YAML files into a CodeQL model pack; publish to GHCR.
+- Consumers add the pack to their query suite or CLI invocation to apply models.
+
+Workflow Tips
+- Start with summaries for common library flows that otherwise break paths (builders, containers, helpers).
+- Add specific sources/sinks tied to your threat model.
+- Keep models narrow to avoid false positives (match by hasQualifiedName).
+- Validate with path queries and unit tests; iterate on precision vs recall.
